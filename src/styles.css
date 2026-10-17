@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+
+:root { font-family: 'Noto Sans KR', sans-serif; color: #18231f; background: #edf1ec; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+.login-shell { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(430px, .85fr); background: #f8faf7; }
+.login-intro { background: #18392b; color: #eff5ec; padding: clamp(3rem, 8vw, 9rem); display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
+.login-intro::after { content: ''; position: absolute; width: 34rem; height: 34rem; border: 1px solid rgba(222, 237, 212, .2); border-radius: 50%; right: -13rem; bottom: -17rem; }
+.eyebrow { font: 500 .72rem/1 'DM Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #77857b; margin: 0 0 1rem; }
+.login-intro .eyebrow { color: #9fc8af; }
+.login-intro h1 { font: 700 clamp(4rem, 8vw, 7.5rem)/.86 'Playfair Display', serif; letter-spacing: -.07em; margin: 0 0 2rem; }
+.login-intro > p:last-child { color: #c5d4c8; line-height: 1.9; font-size: 1.06rem; }
+.login-card { max-width: 430px; width: calc(100% - 3rem); margin: auto; padding: 1.5rem 0; }
+.logo-mark { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: #d1e3b6; color: #18392b; font: 600 .72rem 'DM Mono', monospace; margin-bottom: 2.5rem; }
+h2 { letter-spacing: -.04em; margin: .15rem 0 .45rem; font-size: 1.35rem; }
+.muted, .card span { color: #6f7b73; font-size: .88rem; }
+.role-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem; border-bottom: 1px solid #d9dfd7; margin: 2.2rem 0 1.6rem; }
+.role-tabs button { border: 0; padding: .8rem; background: transparent; color: #748078; font-weight: 600; border-bottom: 2px solid transparent; }
+.role-tabs button.active { color: #18392b; border-color: #18392b; }
+form { display: grid; gap: 1rem; }
+label { display: grid; gap: .55rem; font-size: .82rem; font-weight: 600; color: #45544b; }
+input { border: 1px solid #cdd6cf; border-radius: .45rem; padding: .9rem 1rem; background: white; outline-color: #57775e; }
+.primary-button { display: flex; justify-content: center; align-items: center; gap: .6rem; border: 0; border-radius: .45rem; min-height: 48px; padding: .8rem 1rem; background: #18392b; color: white; font-weight: 700; margin-top: .65rem; }
+.primary-button:hover { background: #24513d; }.primary-button:disabled { opacity: .65; cursor: wait; }.primary-button span { color: inherit; font-size: 1.1rem; }
+.error { margin: 0; color: #b23a3a; font-size: .83rem; }.setup-note { color: #9a5b17; font-size: .76rem; text-align: center; margin-top: 1.5rem; }
+.loading-screen { min-height: 100vh; display: grid; place-items: center; background: #edf1ec; color: #4d6053; }
+.app-shell { min-height: 100vh; padding: 0 clamp(1.25rem, 5vw, 6rem) 5rem; background: #edf1ec; }.topbar { height: 84px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #d4ddd5; }.topbar strong { font: 700 1.35rem 'Playfair Display', serif; letter-spacing: -.05em; }.topbar button { border: 0; color: #617067; background: transparent; font-size: .8rem; }
+.hero-panel { padding: 5rem 0 3.5rem; }.hero-panel h1 { font: 700 clamp(2rem, 4vw, 3.8rem)/1.15 'Noto Sans KR', sans-serif; letter-spacing: -.075em; margin: 0 0 .85rem; }.hero-panel > p:last-child { color: #718076; }.teacher-hero { padding-bottom: 2.5rem; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }.card { min-height: 210px; background: #f9fbf8; padding: 1.65rem; border-radius: 1rem; border: 1px solid #dce4dc; display: flex; flex-direction: column; align-items: flex-start; }.card p { font: 500 .7rem 'DM Mono', monospace; letter-spacing: .08em; color: #77857b; text-transform: uppercase; margin: 0 0 1.2rem; }.card strong { font-size: 1.1rem; letter-spacing: -.04em; }.card span { margin-top: .65rem; }.attendance-card { background: #dbe9ce; }.attendance-card .primary-button { margin-top: auto; width: 100%; }.wide-card { grid-column: 1 / -1; min-height: 190px; flex-direction: row; justify-content: space-between; align-items: center; }.wide-card h2 { font-size: 1.5rem; }.task-count { font: 500 2rem 'DM Mono', monospace; color: #51725a; }.outline-button { border: 1px solid #bccbbf; border-radius: .45rem; padding: .7rem .9rem; background: transparent; color: #294d38; font-weight: 600; margin-top: auto; }
+@media (max-width: 760px) { .login-shell { grid-template-columns: 1fr; }.login-intro { min-height: 34vh; padding: 3rem 2rem; }.login-intro h1 { font-size: 4rem; }.login-card { padding: 3.5rem 0; }.app-shell { padding-inline: 1.25rem; }.hero-panel { padding: 3.5rem 0 2.5rem; }.dashboard-grid { grid-template-columns: 1fr; }.wide-card { grid-column: auto; flex-direction: column; align-items: flex-start; }.wide-card .outline-button { margin-top: 1.5rem; } }
