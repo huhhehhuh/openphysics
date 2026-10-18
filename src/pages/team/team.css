@@ -1,0 +1,149 @@
+/* 팀 화면 전용 스타일. 공통 styles.css 는 건드리지 않고, 모든 클래스에 team- 접두어를 붙여 교사 화면과 겹치지 않게 했습니다.
+   설계도처럼 휴대폰 한 화면 크기의 세로 흐름을 기본으로, 넓은 화면에서는 가운데 정렬합니다. */
+
+.team-shell { padding-bottom: 4rem; }
+/* 팀 화면은 밝은 디자인 한 가지라서, 컴퓨터가 다크 모드여도 입력칸·체크박스가 밝은 모양(검은 글씨)으로 나오게 고정합니다. */
+.team-shell { color-scheme: light; color: #18231f; }
+.team-body { max-width: 560px; margin: 0 auto; padding-top: 2rem; }
+
+/* 상단 바 */
+.team-topbar { gap: 1rem; }
+.team-topbar-right { display: flex; align-items: center; gap: .9rem; }
+.team-name { font-weight: 600; font-size: .88rem; color: #294d38; }
+.team-back { border: 0; background: transparent; color: #18392b !important; font-weight: 600; font-size: .95rem !important; padding: .4rem 0; }
+
+/* 화면 공통 */
+.team-screen { display: flex; flex-direction: column; gap: 1rem; }
+.team-screen-title { font: 700 clamp(1.7rem, 6vw, 2.3rem)/1.2 'Noto Sans KR', sans-serif; letter-spacing: -.06em; margin: 0 0 .5rem; }
+.team-screen .eyebrow { margin: 0; }
+.team-screen-sub { color: #6f7b73; margin: -.6rem 0 .4rem; font-size: .9rem; }
+
+/* 큰 버튼 (홈) */
+.team-big-button { display: flex; flex-direction: column; align-items: flex-start; gap: .35rem; width: 100%; text-align: left; padding: 1.4rem 1.5rem; border-radius: 1rem; border: 1px solid #d4ddd5; background: #f9fbf8; color: #18231f; transition: transform .1s, background .15s; }
+.team-big-button strong { font-size: 1.2rem; letter-spacing: -.04em; }
+.team-big-button span { color: #5d6e62; font-size: .9rem; }
+.team-big-button small { color: #8a968e; font-size: .78rem; }
+.team-big-button:hover:not(:disabled) { background: white; }
+.team-big-button:active:not(:disabled) { transform: scale(.99); }
+.team-big-button:disabled { cursor: default; opacity: .7; }
+.team-big-button.is-primary { background: #18392b; border-color: #18392b; color: white; min-height: 7.5rem; justify-content: center; }
+.team-big-button.is-primary span { color: #c5d4c8; }
+.team-big-button.is-primary:hover:not(:disabled) { background: #24513d; }
+
+.team-text-button { border: 0; background: transparent; color: #294d38; font-weight: 600; font-size: .88rem; padding: .6rem 0; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.team-pill-button { align-self: center; border: 1px solid #b7caad; background: #eef5e8; border-radius: 99px; padding: .7rem 1.4rem; font-weight: 700; color: #18392b; }
+.team-pill-button:hover { background: white; }
+
+/* 진행 중 화면 */
+.team-timer-box { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: .2rem .5rem; text-align: center; padding: 1.4rem 1rem; border-radius: 1rem; background: #dbe9ce; color: #294d38; }
+.team-timer-box strong { font: 500 2.2rem 'DM Mono', monospace; color: #18392b; letter-spacing: -.04em; }
+.team-timer-box small { flex-basis: 100%; color: #5d6e62; font-size: .8rem; }
+.team-session-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: .75rem; min-height: 15rem; }
+.team-tile { border: 1px solid #d4ddd5; border-radius: 1rem; background: #f9fbf8; font-weight: 700; font-size: 1.05rem; color: #18392b; line-height: 1.4; }
+.team-tile:hover { background: white; }
+.team-tile.is-finish { grid-column: 2; grid-row: 1 / 3; background: #18392b; color: white; border-color: #18392b; font-size: 1.2rem; }
+.team-tile.is-finish:hover { background: #24513d; }
+.team-tile.is-ended, .team-tile.is-ended:hover { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem; background: #dfe6dd; border-color: #d4ddd5; color: #5d6e62; cursor: default; }
+.team-tile.is-ended small { font: 500 .85rem 'DM Mono', monospace; color: #6f7b73; }
+.team-session-grid .team-tile:nth-child(2) { grid-column: 1; }
+
+/* 끝내기(종료) 화면 */
+.team-finish-card { display: flex; flex-direction: column; gap: .9rem; padding: 1.5rem; border-radius: 1rem; background: #f9fbf8; border: 1px solid #d4ddd5; }
+.team-finish-row { display: flex; justify-content: space-between; gap: 1rem; font-size: .95rem; }
+.team-finish-row span { color: #5d6e62; }
+.team-finish-row strong { text-align: right; }
+.team-finish-card label { gap: .45rem; }
+.team-finish-card textarea { font: inherit; width: 100%; border: 1px solid #cdd6cf; border-radius: .45rem; padding: .8rem 1rem; background: #ffffff; color: #18231f; outline-color: #57775e; resize: vertical; }
+.team-finish-card textarea::placeholder { color: #8a968e; }
+.team-reason-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.team-reason-chips button { border: 1px solid #b7caad; background: #eef5e8; border-radius: 99px; padding: .3rem .7rem; font-size: .78rem; color: #294d38; }
+.team-reason-chips button:hover { background: white; }
+.team-button-row { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.team-button-row .primary-button, .team-button-row .outline-button { margin-top: 0; min-height: 48px; }
+
+/* 과제 */
+.team-progress { height: 8px; border-radius: 99px; background: #e2e9e1; overflow: hidden; }
+.team-progress span { display: block; height: 100%; background: #4f8a5f; transition: width .25s; }
+.team-task-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.team-task-list label { display: flex; justify-content: space-between; align-items: center; gap: .8rem; padding: 1rem 1.1rem; border-radius: .7rem; border: 1px solid #d4ddd5; background: #f9fbf8; font-size: .98rem; font-weight: 600; color: #18231f; cursor: pointer; }
+.team-task-list label.is-done { background: #eef5e8; }
+.team-task-list label.is-done span { color: #7d8a81; text-decoration: line-through; }
+.team-task-list input { width: 1.4rem; height: 1.4rem; padding: 0; accent-color: #18392b; flex: none; }
+.team-count { font: 500 1.4rem 'DM Mono', monospace; color: #51725a; }
+
+/* 상태 표시(로딩/빈 상태/오류) */
+.team-state { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; padding: 1.4rem 1.5rem; border-radius: 1rem; border: 1px dashed #c9d4ca; background: #f4f7f3; color: #4d6053; font-size: .9rem; }
+.team-state strong { color: #18231f; }
+.team-state span { color: #6f7b73; }
+.team-state .outline-button { margin-top: .5rem; }
+.team-state-error { border-style: solid; border-color: #e4c3c3; background: #fbf3f2; }
+.team-state-error strong { color: #8f2c2c; }
+.team-state[aria-busy='true'] { flex-direction: row; align-items: center; }
+.team-inline-error { margin: 0; color: #b23a3a; font-size: .85rem; }
+.team-inline-note { margin: 0; color: #6f7b73; font-size: .82rem; }
+.team-spinner { width: 1rem; height: 1rem; border-radius: 50%; border: 2px solid #c6d4c8; border-top-color: #18392b; animation: team-spin .8s linear infinite; flex: none; }
+@keyframes team-spin { to { transform: rotate(360deg); } }
+
+/* 달력 */
+.team-calendar { padding: 1.1rem; background: #f9fbf8; border: 1px solid #dce4dc; border-radius: 1rem; }
+.team-calendar-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .8rem; }
+.team-calendar-head button { width: 2.2rem; height: 2.2rem; border-radius: 50%; border: 1px solid #d4ddd5; background: white; color: #294d38; font-size: 1.1rem; }
+.team-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
+.team-calendar-weekday { text-align: center; font: 500 .7rem 'DM Mono', monospace; color: #8a968e; padding: .3rem 0; }
+.team-calendar-day { position: relative; height: 2.9rem; border: 1px solid transparent; border-radius: .6rem; background: transparent; color: #a3ada6; font: 500 .85rem 'DM Mono', monospace; }
+.team-calendar-day:disabled { cursor: default; }
+.team-calendar-day.has-op { background: #e3eed8; color: #18392b; font-weight: 700; }
+.team-calendar-day.has-op:hover { background: #d1e3b6; }
+.team-calendar-day.is-today { border-color: #18392b; }
+.team-calendar-day.is-selected, .team-calendar-day.is-selected:hover { background: #18392b; color: white; }
+.team-calendar-dots { position: absolute; left: 0; right: 0; bottom: .25rem; display: flex; justify-content: center; gap: 3px; }
+.team-calendar-dots i, .team-legend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+.dot-attend { background: #4f8a5f; }
+.dot-journal { background: #c98a2c; }
+.team-calendar-day.is-selected .dot-attend { background: #b9e0c1; }
+.team-calendar-foot { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; margin-top: .9rem; font-size: .78rem; color: #6f7b73; }
+.team-legend { display: inline-flex; align-items: center; gap: .3rem; }
+.team-legend i:last-of-type { margin-left: .5rem; }
+.team-link-button { border: 0; background: transparent; color: #294d38; font-weight: 600; font-size: .82rem; padding: .35rem .2rem; text-decoration: underline; text-underline-offset: 3px; }
+.team-link-button:disabled { color: #9aa59d; cursor: default; }
+.team-day-detail { display: flex; flex-direction: column; gap: .4rem; padding: 1.2rem 1.3rem; border-radius: 1rem; background: #f9fbf8; border: 1px solid #d4ddd5; }
+.team-day-detail h2 { margin: 0; font-size: 1.15rem; }
+.team-day-detail ul { margin: .3rem 0 0; padding-left: 1.1rem; color: #45544b; font-size: .9rem; }
+.team-badges { display: flex; flex-wrap: wrap; gap: .3rem; }
+.team-badges em { font-style: normal; font-size: .72rem; font-weight: 600; padding: .15rem .55rem; border-radius: 99px; background: #e8ede6; color: #5d6e62; }
+.team-badges em.badge-today { background: #18392b; color: white; }
+.team-badges em.badge-attend { background: #d6ead9; color: #2f6a3f; }
+.team-badges em.badge-journal { background: #f4e3c6; color: #8a5a12; }
+
+/* 작성내용 보기 */
+.team-journal-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .8rem; }
+.team-journal-item { display: flex; flex-direction: column; gap: .6rem; }
+.team-journal-head { display: flex; align-items: center; gap: .6rem; }
+.team-journal-head > div { flex: 1; min-width: 0; padding: .85rem 1.1rem; border-radius: .8rem; border: 1px solid #d4ddd5; background: #f9fbf8; }
+.team-journal-head strong { display: block; font-size: 1.05rem; }
+.team-journal-head small { color: #6f7b73; font-size: .78rem; }
+.team-journal-head .outline-button { margin-top: 0; flex: none; }
+.team-feedback-list { list-style: none; margin: 0 0 0 1.4rem; padding: 0; display: grid; gap: .45rem; position: relative; }
+.team-feedback-list::before { content: '↳'; position: absolute; left: -1.2rem; top: .55rem; color: #a59a78; }
+.team-feedback-list li { background: #f3f0e6; border: 1px solid #e6dfcb; border-radius: .7rem; padding: .7rem .95rem; }
+.team-feedback-list small { display: block; color: #7d7356; font-size: .74rem; margin-bottom: .25rem; }
+.team-feedback-list p { margin: 0; white-space: pre-wrap; line-height: 1.6; font-size: .9rem; }
+.team-feedback-empty { margin: 0 0 0 1.4rem; color: #8a968e; font-size: .8rem; }
+
+/* 실험일지 작성 (양식 화면 자체는 공통 styles.css 의 journal-document 를 그대로 사용) */
+.team-body:has(.team-journal-write) { max-width: 920px; }
+.team-template-list { display: grid; gap: .6rem; }
+.team-template-list button { display: flex; flex-direction: column; align-items: flex-start; gap: .3rem; padding: 1.1rem 1.25rem; text-align: left; border: 1px solid #d7e1d6; border-radius: .8rem; background: #fbfcf9; color: #1e392a; }
+.team-template-list button span { color: #66806c; font: .65rem 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase; }
+.team-template-list button strong { font-size: 1.15rem; }
+.team-template-list button small { color: #68776c; font-size: .82rem; line-height: 1.6; }
+.team-template-list button:hover, .team-template-list button.is-selected { border-color: #5e8c68; background: #e9f0dd; box-shadow: inset 0 0 0 1px #5e8c68; }
+.team-journal-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .75rem; }
+.team-journal-toolbar .template-change { margin-top: 0; }
+.team-journal-toolbar .outline-button { margin-top: 0; }
+.team-dirty { color: #9a5b17; font-weight: 600; }
+.team-saved { color: #2f6a3f; font-weight: 600; }
+.team-journal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .6rem; position: sticky; bottom: 0; padding: .8rem 0; background: #edf1ec; }
+.team-journal-actions .primary-button, .team-journal-actions .outline-button { margin-top: 0; }
+.team-detail-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .4rem; }
+.team-detail-actions .outline-button { margin-top: 0; }

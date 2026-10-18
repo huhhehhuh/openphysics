@@ -21,7 +21,7 @@
 
 - Supabase Auth 로그인 후 `profiles.role`로 화면을 분기합니다. DB의 RLS가 팀별 접근을 제한하므로 화면에서 팀 ID를 감추는 것만으로 권한을 판단하지 않습니다.
 - 팀 계정은 자기 팀의 `attendance`, `journals`, `task_completions`, `journal_feedback`만 조회할 수 있습니다. 과제 완료와 일지 작성은 자기 팀 것만 가능합니다.
-- 교사는 전체 팀 기록을 조회하고 `op_days`, `tasks`, `journal_feedback`을 관리합니다. 일정 삭제 권한은 없습니다.
+- 교사는 전체 팀 기록을 조회하고 `op_days`, `tasks`, `journal_feedback`을 관리합니다. 일정 삭제 시 연결된 과제·출석·일지도 외래키 설정에 따라 함께 삭제될 수 있습니다.
 - 출석 시작·종료는 테이블 직접 수정이 아니라 `supabase.rpc('start_attendance', { p_op_day_id })`, `supabase.rpc('finish_attendance', { p_op_day_id, p_reason })`를 사용합니다. 시작은 서울 날짜가 일정 날짜와 같을 때만 됩니다. 종료 사유는 필수입니다. 시간은 서버에서 기록한 `timestamptz`이며 화면에는 한국 시간으로 표시합니다.
 - 팀당 동시에 한 명만 로그인하도록 제한하는 기능은 아직 없습니다. 한 팀 계정을 여러 기기에서 쓰면 동시에 접속할 수 있습니다.
 - PDF 다운로드는 일지 데이터를 이용해 앱에서 생성할 예정이며, PDF 파일을 저장하는 DB 컬럼은 없습니다.
