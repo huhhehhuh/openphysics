@@ -70,6 +70,17 @@ create unique index if not exists journals_team_journal_date_key
 
 grant insert (team_id, journal_date, file_path, file_name, content) on public.journals to authenticated;
 grant update (journal_date, file_path, file_name, content) on public.journals to authenticated;
+grant delete on public.journals to authenticated;
+
+-- A team may delete only its own journal; teachers may remove any journal.
+drop policy if exists journals_team_delete on public.journals;
+drop policy if exists journals_delete on public.journals;
+create policy journals_delete on public.journals
+for delete to authenticated
+using (
+  team_id = (select private.current_team_id())
+  or (select private.is_teacher())
+);
 
 -- Private Storage bucket for submitted PDFs.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -103,7 +114,10 @@ create policy experiment_journals_team_delete on storage.objects
 for delete to authenticated
 using (
   bucket_id = 'experiment-journals'
-  and (storage.foldername(name))[1] = (select private.current_team_id())::text
+  and (
+    (select private.is_teacher())
+    or (storage.foldername(name))[1] = (select private.current_team_id())::text
+  )
 );
 
 -- Task checks are possible only during an active attendance session for that OP Day.
