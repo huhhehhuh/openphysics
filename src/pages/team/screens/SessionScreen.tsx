@@ -14,10 +14,10 @@ type Props = {
   onWriteJournal: () => void
   onOpenJournalList: () => void
   onFinish: () => void
-  autonomous?: boolean
+  tasksAvailable: boolean
 }
 
-export default function SessionScreen({ day, attendance, taskProgress, onOpenTasks, onWriteJournal, onOpenJournalList, onFinish, autonomous = false }: Props) {
+export default function SessionScreen({ day, attendance, taskProgress, onOpenTasks, onWriteJournal, onOpenJournalList, onFinish, tasksAvailable }: Props) {
   const active = attendance.ended_at === null
   const now = useNow(active, 1000)
   const started = new Date(attendance.started_at).getTime()
@@ -27,9 +27,9 @@ export default function SessionScreen({ day, attendance, taskProgress, onOpenTas
       <p className="eyebrow">{formatDayLong(day.date)}</p>
       <h1 className="team-screen-title">{day.title}</h1>
 
-      {autonomous ? <p className="team-inline-note">오늘은 등록된 OP Day 없이 자율 탐구로 출석했어요. 과제와 실험일지는 OP Day를 선택한 뒤 이용할 수 있습니다.</p> : <button type="button" className="team-pill-button" onClick={onOpenTasks}>
+      {tasksAvailable && active ? <button type="button" className="team-pill-button" onClick={onOpenTasks}>
         오늘의 과제 보기{taskProgress && taskProgress.total > 0 ? ` (${taskProgress.done}/${taskProgress.total})` : ''}
-      </button>}
+      </button> : <p className="team-inline-note">과제 체크는 해당 OP Day 출석을 진행 중일 때만 할 수 있어요.</p>}
 
       {/* 출석을 마친 뒤에도 진행 중일 때와 같은 모양으로 보여 줘서, 당일에 과제·일지를 다시 고칠 수 있어요. */}
       <div className="team-timer-box" aria-live="off">
@@ -51,8 +51,8 @@ export default function SessionScreen({ day, attendance, taskProgress, onOpenTas
       </div>
 
       <div className="team-session-grid">
-        {!autonomous && <button type="button" className="team-tile" onClick={onWriteJournal}>실험일지<br />작성</button>}
-        {!autonomous && <button type="button" className="team-tile" onClick={onOpenJournalList}>작성내용<br />보기</button>}
+        <button type="button" className="team-tile" onClick={onWriteJournal}>실험일지<br />제출</button>
+        <button type="button" className="team-tile" onClick={onOpenJournalList}>제출 기록<br />보기</button>
         {active ? (
           <button type="button" className="team-tile is-finish" onClick={onFinish}>끝내기</button>
         ) : (

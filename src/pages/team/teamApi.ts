@@ -28,7 +28,7 @@ export type Attendance = {
 /** 실험일지 한 건. 양식 종류(template_type)와 칸별 입력값(form_data, JSON)으로 저장됩니다. */
 export type JournalSummary = {
   id: string
-  op_day_id: string
+  op_day_id: string | null
   created_at: string
   updated_at: string
   template_type: JournalTemplateType

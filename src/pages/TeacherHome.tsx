@@ -1,14 +1,11 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { downloadJournalPdf } from '../journals/downloadPdf'
-import JournalDocument from '../journals/JournalDocument'
-import { JOURNAL_TEMPLATES, type JournalTemplateType } from '../journals/templates'
 import { supabase } from '../lib/supabase'
 import type { Profile } from '../types'
 
 type TeacherHomeProps = { profile: Profile; onSignOut: () => void }
 type OpDay = { id: string; date: string; title: string }
-type Attendance = { id: string; team_id: string; op_day_id: string; ended_at: string | null }
-type Journal = { id: string; team_id: string; op_day_id: string; updated_at: string; template_type: JournalTemplateType; form_data: Record<string, string> }
+type Attendance = { id: string; team_id: string; op_day_id: string | null; started_at: string; ended_at: string | null; end_reason: string | null }
+type Journal = { id: string; team_id: string; journal_date: string; updated_at: string; file_path: string | null; file_name: string | null }
 type Feedback = { id: string; content: string; created_at: string }
 type Team = { id: string; name: string }
 type Task = { id: string; op_day_id: string; title: string; sort_order: number }
@@ -18,6 +15,7 @@ const dateFormatter = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'nu
 
 function formatDate(value: string) { return dateFormatter.format(new Date(`${value}T00:00:00`)) }
 function localDate() { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date()) }
+function dateFromTimestamp(value: string) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date(value)) }
 
 function relativeDay(value: string) {
   const today = new Date(`${localDate()}T00:00:00`).getTime()
@@ -46,7 +44,7 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
   const [feedback, setFeedback] = useState<Feedback[]>([])
   const [feedbackText, setFeedbackText] = useState('')
   const [feedbackSaving, setFeedbackSaving] = useState(false)
-  const journalRef = useRef<HTMLDivElement>(null)
+  const [journalFileUrl, setJournalFileUrl] = useState('')
   const journalsRef = useRef<Journal[]>([])
   const historyPop = useRef(false)
   const historyInitialized = useRef(false)
@@ -57,8 +55,8 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
     setError('')
     const [opDaysResult, attendanceResult, journalsResult, teamsResult, tasksResult] = await Promise.all([
       supabase.from('op_days').select('id, date, title').order('date'),
-      supabase.from('attendance').select('id, team_id, op_day_id, ended_at').order('started_at', { ascending: false }),
-      supabase.from('journals').select('id, team_id, op_day_id, updated_at, template_type, form_data').order('updated_at', { ascending: false }),
+      supabase.from('attendance').select('id, team_id, op_day_id, started_at, ended_at, end_reason').order('started_at', { ascending: false }),
+      supabase.from('journals').select('id, team_id, journal_date, updated_at, file_path, file_name').order('journal_date', { ascending: false }),
       supabase.from('teams').select('id, name').order('name'),
       supabase.from('tasks').select('id, op_day_id, title, sort_order').order('sort_order'),
     ])
@@ -126,7 +124,7 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
   const teamNames = useMemo(() => new Map(teams.map((team) => [team.id, team.name])), [teams])
   const upcomingDays = opDays.filter((day) => day.date >= localDate()).slice(0, 3)
   const todayOpDay = opDays.find((day) => day.date === localDate())
-  const todayAttendance = todayOpDay ? attendance.filter((item) => item.op_day_id === todayOpDay.id) : []
+  const todayAttendance = attendance.filter((item) => dateFromTimestamp(item.started_at) === localDate())
   const completedToday = todayAttendance.filter((item) => item.ended_at).length
   const taskEditingLocked = Boolean(editingSchedule && (editingSchedule.date === localDate() || scheduleDate === localDate()))
 
@@ -217,15 +215,20 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
     { id: 'attendance', label: '출결 현황' }, { id: 'journals', label: '실험일지' },
   ]
 
-  const titleFor = (opDayId: string) => opDays.find((day) => day.id === opDayId)?.title ?? 'OP DAY'
+  const titleFor = (opDayId: string | null) => opDayId ? opDays.find((day) => day.id === opDayId)?.title ?? 'OP DAY' : '자율 탐구'
 
   async function openJournal(journal: Journal) {
     if (!supabase) return
     setSelectedJournal(journal)
+    setJournalFileUrl('')
     setFeedbackText('')
     const { data, error: feedbackError } = await supabase.from('journal_feedback').select('id, content, created_at').eq('journal_id', journal.id).order('created_at')
     if (feedbackError) setError('피드백을 불러오지 못했어요.')
     setFeedback((data ?? []) as Feedback[])
+    if (journal.file_path) {
+      const { data: signed } = await supabase.storage.from('experiment-journals').createSignedUrl(journal.file_path, 60 * 30)
+      setJournalFileUrl(signed?.signedUrl ?? '')
+    }
   }
 
   async function saveFeedback(event: FormEvent) {
@@ -257,14 +260,14 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
           <section className="teacher-heading"><p className="eyebrow">TEACHER DASHBOARD · 2026</p><h1>좋은 아침이에요,<br /><em>{profile.display_name}</em> 선생님.</h1><p>오늘의 Open Physics를 한눈에 확인하세요.</p></section>
           <section className="teacher-metrics" aria-label="오늘의 현황">
             <article><span>등록된 참여팀</span><strong>{loading ? '–' : teams.length}</strong><small>함께 탐구하는 팀</small></article>
-            <article><span>오늘 출석 시작</span><strong>{loading ? '–' : todayAttendance.length}</strong><small>{todayOpDay ? todayOpDay.title : '오늘은 OP 일정이 없어요'}</small></article>
+            <article><span>오늘 출석 시작</span><strong>{loading ? '–' : todayAttendance.length}</strong><small>{todayOpDay ? `${todayOpDay.title} · 자율 탐구 포함` : '자율 탐구 포함'}</small></article>
             <article><span>오늘 출석 종료</span><strong>{loading ? '–' : completedToday}</strong><small>기록을 마친 팀</small></article>
             <article><span>작성된 실험일지</span><strong>{loading ? '–' : journals.length}</strong><small>전체 저장 기록</small></article>
           </section>
           <section className="teacher-panels">
             <article className="teacher-panel upcoming-panel"><div className="panel-title"><div><p>UPCOMING OP DAY</p><h2>다가오는 일정</h2></div><button className="text-button" onClick={() => setView('schedule')} type="button">전체 보기 →</button></div><div className="schedule-list">{loading ? <p className="empty-copy">일정을 불러오는 중이에요.</p> : upcomingDays.length === 0 ? <p className="empty-copy">아직 등록된 일정이 없어요.<br />첫 OP DAY를 만들어 보세요.</p> : upcomingDays.map((day) => <button className="schedule-row" key={day.id} onClick={() => setView('schedule')} type="button"><span className="date-badge"><b>{new Date(`${day.date}T00:00:00`).getDate()}</b><small>{new Date(`${day.date}T00:00:00`).toLocaleDateString('ko-KR', { month: 'short' })}</small></span><span><strong>{day.title}</strong><small>{formatDate(day.date)} · {relativeDay(day.date)}</small></span><i>→</i></button>)}</div></article>
-            <article className="teacher-panel attendance-summary"><div className="panel-title"><div><p>LIVE ATTENDANCE</p><h2>오늘의 출결</h2></div><button className="text-button" onClick={() => setView('attendance')} type="button">상세 보기 →</button></div>{todayOpDay ? <><div className="attendance-number"><strong>{todayAttendance.length}</strong><span>/ {teams.length} 팀 출석 시작</span></div><div className="attendance-progress"><span style={{ width: `${teams.length ? (todayAttendance.length / teams.length) * 100 : 0}%` }} /></div><p className="attendance-caption">{completedToday}팀이 오늘의 기록을 마쳤어요.</p></> : <p className="empty-copy">오늘 등록된 OP 일정이 없어요.</p>}</article>
-            <article className="teacher-panel journals-panel"><div className="panel-title"><div><p>JOURNAL INBOX</p><h2>최근 실험일지</h2></div><button className="text-button" onClick={() => setView('journals')} type="button">모두 보기 →</button></div><div className="journal-list">{loading ? <p className="empty-copy">일지를 불러오는 중이에요.</p> : journals.length === 0 ? <p className="empty-copy">아직 저장된 실험일지가 없어요.</p> : journals.slice(0, 4).map((journal) => <div className="journal-row" key={journal.id}><span className="journal-icon">⌁</span><span><strong>{teamNames.get(journal.team_id) ?? '참여팀'}</strong><small>{titleFor(journal.op_day_id)} · {new Date(journal.updated_at).toLocaleDateString('ko-KR')}</small></span><button onClick={() => { setView('journals'); void openJournal(journal) }} type="button">보기</button></div>)}</div></article>
+            <article className="teacher-panel attendance-summary"><div className="panel-title"><div><p>LIVE ATTENDANCE</p><h2>오늘의 출결</h2></div><button className="text-button" onClick={() => setView('attendance')} type="button">상세 보기 →</button></div><div className="attendance-number"><strong>{todayAttendance.length}</strong><span>건의 출석 세션 시작</span></div><div className="attendance-progress"><span style={{ width: `${teams.length ? Math.min(100, (todayAttendance.length / teams.length) * 100) : 0}%` }} /></div><p className="attendance-caption">{completedToday}개 출석 세션이 오늘 종료됐어요.</p></article>
+            <article className="teacher-panel journals-panel"><div className="panel-title"><div><p>JOURNAL INBOX</p><h2>최근 실험일지</h2></div><button className="text-button" onClick={() => setView('journals')} type="button">모두 보기 →</button></div><div className="journal-list">{loading ? <p className="empty-copy">일지를 불러오는 중이에요.</p> : journals.length === 0 ? <p className="empty-copy">아직 제출된 PDF가 없어요.</p> : journals.slice(0, 4).map((journal) => <div className="journal-row" key={journal.id}><span className="journal-icon">PDF</span><span><strong>{teamNames.get(journal.team_id) ?? '참여팀'}</strong><small>{formatDate(journal.journal_date)} · {journal.file_name ?? '기존 기록'}</small></span><button onClick={() => { setView('journals'); void openJournal(journal) }} type="button">보기</button></div>)}</div></article>
           </section>
         </>}
         {view === 'schedule' && <section className="management-view">
@@ -277,8 +280,8 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
           </form>}
           <div className="management-list">{opDays.length === 0 ? <p className="empty-copy">등록된 OP 일정이 없어요.</p> : opDays.map((day) => { const dayTasks = tasks.filter((task) => task.op_day_id === day.id); return <article className="schedule-management-row" key={day.id}><span>{formatDate(day.date)}</span><div><strong>{day.title}</strong><small>{relativeDay(day.date)}</small>{dayTasks.length > 0 && <ul className="task-preview-list">{dayTasks.map((task) => <li key={task.id}>{task.title}</li>)}</ul>}</div><div className="schedule-row-actions"><button className="schedule-edit-button" onClick={() => openScheduleEditor(day)} type="button">수정</button><button className="schedule-delete-button" disabled={saving} onClick={() => void deleteSchedule(day)} type="button">삭제</button></div></article> })}</div>
         </section>}
-        {view === 'attendance' && <section className="management-view"><div className="management-heading"><div><p className="eyebrow">ATTENDANCE LOG</p><h1>팀별 출결 현황</h1><p>출석 시작과 종료 기록을 확인할 수 있어요.</p></div></div><div className="management-list">{attendance.length === 0 ? <p className="empty-copy">아직 출석 기록이 없어요.</p> : attendance.map((item) => <article key={item.id}><span>{teamNames.get(item.team_id) ?? '참여팀'}</span><strong>{titleFor(item.op_day_id)}</strong><small>{item.ended_at ? '출석 종료' : '현재 진행 중'}</small></article>)}</div></section>}
-        {view === 'journals' && <section className="management-view"><div className="management-heading"><div><p className="eyebrow">EXPERIMENT JOURNALS</p><h1>실험일지 관리</h1><p>팀이 선택한 양식 그대로 읽고 피드백을 남길 수 있어요.</p></div></div>{selectedJournal ? <div className="journal-review"><div className="journal-review-bar"><button className="text-button" onClick={() => setSelectedJournal(null)} type="button">← 목록으로</button><button className="outline-button" onClick={() => journalRef.current && void downloadJournalPdf(journalRef.current, `${teamNames.get(selectedJournal.team_id) ?? '참여팀'}-${titleFor(selectedJournal.op_day_id)}`)} type="button">PDF 다운로드</button></div><div ref={journalRef}><JournalDocument readOnly templateType={selectedJournal.template_type} data={selectedJournal.form_data ?? {}} title={`${teamNames.get(selectedJournal.team_id) ?? '참여팀'} · ${titleFor(selectedJournal.op_day_id)}`} /></div><section className="feedback-box"><p className="eyebrow">TEACHER FEEDBACK</p><h2>교사 피드백</h2>{feedback.length === 0 ? <p className="empty-copy">아직 남긴 피드백이 없어요.</p> : feedback.map((item) => <article key={item.id}><p>{item.content}</p><small>{new Date(item.created_at).toLocaleString('ko-KR')}</small></article>)}<form onSubmit={saveFeedback}><label>새 피드백<textarea value={feedbackText} onChange={(event) => setFeedbackText(event.target.value)} placeholder="다음 실험을 위한 구체적인 피드백을 작성해 주세요." rows={4} /></label><button className="primary-button compact" disabled={feedbackSaving} type="submit">{feedbackSaving ? '저장 중...' : '피드백 저장'}</button></form></section></div> : <div className="management-list">{journals.length === 0 ? <p className="empty-copy">아직 작성된 일지가 없어요.</p> : journals.map((journal) => <button className="journal-management-row" key={journal.id} onClick={() => void openJournal(journal)} type="button"><span>{teamNames.get(journal.team_id) ?? '참여팀'}</span><strong>{titleFor(journal.op_day_id)}</strong><small>{JOURNAL_TEMPLATES[journal.template_type].name} · 마지막 저장: {new Date(journal.updated_at).toLocaleString('ko-KR')}</small><i>→</i></button>)}</div>}</section>}
+        {view === 'attendance' && <section className="management-view"><div className="management-heading"><div><p className="eyebrow">ATTENDANCE LOG</p><h1>팀별 출결 현황</h1><p>출석 시작·종료 기록과 종료 사유를 확인할 수 있어요.</p></div></div><div className="management-list">{attendance.length === 0 ? <p className="empty-copy">아직 출석 기록이 없어요.</p> : attendance.map((item) => <article key={item.id}><span>{teamNames.get(item.team_id) ?? '참여팀'}</span><div><strong>{titleFor(item.op_day_id)}</strong><small>{new Date(item.started_at).toLocaleString('ko-KR')} 시작 · {item.ended_at ? '출석 종료' : '현재 진행 중'}{item.end_reason ? ` · 사유: ${item.end_reason}` : ''}</small></div></article>)}</div></section>}
+        {view === 'journals' && <section className="management-view"><div className="management-heading"><div><p className="eyebrow">EXPERIMENT JOURNALS</p><h1>실험일지 관리</h1><p>팀이 제출한 PDF를 읽고 피드백을 남길 수 있어요.</p></div></div>{selectedJournal ? <div className="journal-review"><div className="journal-review-bar"><button className="text-button" onClick={() => setSelectedJournal(null)} type="button">← 목록으로</button>{journalFileUrl && <a className="outline-button" href={journalFileUrl} rel="noreferrer" target="_blank">PDF 새 창에서 열기</a>}</div>{journalFileUrl ? <iframe className="journal-pdf-preview" src={journalFileUrl} title={`${teamNames.get(selectedJournal.team_id) ?? '참여팀'} PDF 실험일지`} /> : <p className="empty-copy">이 기록은 이전 양식으로 저장되어 PDF가 없거나, PDF 주소를 불러오지 못했어요.</p>}<section className="feedback-box"><p className="eyebrow">TEACHER FEEDBACK</p><h2>교사 피드백</h2>{feedback.length === 0 ? <p className="empty-copy">아직 남긴 피드백이 없어요.</p> : feedback.map((item) => <article key={item.id}><p>{item.content}</p><small>{new Date(item.created_at).toLocaleString('ko-KR')}</small></article>)}<form onSubmit={saveFeedback}><label>새 피드백<textarea value={feedbackText} onChange={(event) => setFeedbackText(event.target.value)} placeholder="다음 실험을 위한 구체적인 피드백을 작성해 주세요." rows={4} /></label><button className="primary-button compact" disabled={feedbackSaving} type="submit">{feedbackSaving ? '저장 중...' : '피드백 저장'}</button></form></section></div> : <div className="management-list">{journals.length === 0 ? <p className="empty-copy">아직 제출된 PDF가 없어요.</p> : journals.map((journal) => <button className="journal-management-row" key={journal.id} onClick={() => void openJournal(journal)} type="button"><span>{teamNames.get(journal.team_id) ?? '참여팀'}</span><strong>{formatDate(journal.journal_date)}</strong><small>{journal.file_name ?? '기존 양식 기록'} · 마지막 저장: {new Date(journal.updated_at).toLocaleString('ko-KR')}</small><i>→</i></button>)}</div>}</section>}
       </section>
     </div>
   </main>

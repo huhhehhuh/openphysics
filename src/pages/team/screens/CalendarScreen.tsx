@@ -2,20 +2,19 @@
 // 달력에서 OP 날짜를 누르면 그날의 시간·출석 상태·과제 목록을 아래에 보여 줍니다.
 import { useEffect, useMemo, useState } from 'react'
 import ScheduleCalendar from '../ScheduleCalendar'
-import { fetchTasks, friendlyError, type Attendance, type JournalSummary, type OpDay, type Task } from '../teamApi'
+import { fetchTasks, friendlyError, type Attendance, type OpDay, type Task } from '../teamApi'
 import { formatDayLong, formatTimeRange } from '../time'
 
 type Props = {
   opDays: OpDay[]
   today: string
   attendances: Attendance[]
-  journals: JournalSummary[]
+  journals: Array<{ op_day_id: string | null }>
   onOpenSession: (opDayId: string) => void
-  onOpenTasks: (opDayId: string) => void
   onOpenJournal: (opDayId: string) => void
 }
 
-export default function CalendarScreen({ opDays, today, attendances, journals, onOpenSession, onOpenTasks, onOpenJournal }: Props) {
+export default function CalendarScreen({ opDays, today, attendances, journals, onOpenSession, onOpenJournal }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(
     () => (opDays.find((d) => d.date >= today) ?? opDays[opDays.length - 1])?.id ?? null,
   )
@@ -23,7 +22,7 @@ export default function CalendarScreen({ opDays, today, attendances, journals, o
   const [tasksError, setTasksError] = useState('')
 
   const attendedDayIds = useMemo(() => new Set(attendances.flatMap((a) => a.op_day_id ? [a.op_day_id] : [])), [attendances])
-  const journalDayIds = useMemo(() => new Set(journals.map((j) => j.op_day_id)), [journals])
+  const journalDayIds = useMemo(() => new Set(journals.flatMap((j) => j.op_day_id ? [j.op_day_id] : [])), [journals])
   const selected = opDays.find((d) => d.id === selectedId) ?? null
   const attendance = attendances.find((a) => a.op_day_id === selectedId) ?? null
 
@@ -86,8 +85,6 @@ export default function CalendarScreen({ opDays, today, attendances, journals, o
           <div className="team-detail-actions">
             {attendance ? (
               <button type="button" className="outline-button" onClick={() => onOpenSession(selected.id)}>진행 화면 보기 →</button>
-            ) : tasks && tasks.length > 0 ? (
-              <button type="button" className="outline-button" onClick={() => onOpenTasks(selected.id)}>과제 체크하기 →</button>
             ) : null}
             <button type="button" className="outline-button" onClick={() => onOpenJournal(selected.id)}>
               {journalDayIds.has(selected.id) ? '실험일지 열기 →' : '실험일지 작성 →'}

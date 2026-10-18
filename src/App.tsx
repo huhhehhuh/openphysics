@@ -20,6 +20,7 @@ function Login({ onSignedIn }: { onSignedIn: (session: Session) => void }) {
   const [role, setRole] = useState<Role>('team')
   const [identity, setIdentity] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -79,14 +80,19 @@ function Login({ onSignedIn }: { onSignedIn: (session: Session) => void }) {
           </label>
           <label>
             비밀번호
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="비밀번호 입력"
-              required
-            />
+            <span className="password-input-wrap">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="비밀번호 입력"
+                required
+              />
+              <button className="password-visibility-button" onClick={() => setShowPassword((current) => !current)} type="button">
+                {showPassword ? '숨기기' : '보기'}
+              </button>
+            </span>
           </label>
           {error && <p className="error" role="alert">{error}</p>}
           <button className="primary-button" disabled={loading} type="submit">

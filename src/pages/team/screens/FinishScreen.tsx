@@ -3,7 +3,7 @@
 // 화면의 종료 시각은 "지금 제출하면 대략 이 시각"이라는 미리보기이고,
 // 실제 종료 시각은 제출할 때 서버(finish_attendance RPC)가 기록합니다.
 import { FormEvent, useState } from 'react'
-import { finishAttendance, finishAttendanceById, friendlyError, type Attendance, type OpDay } from '../teamApi'
+import { finishAttendanceById, friendlyError, type Attendance, type OpDay } from '../teamApi'
 import { formatDayLong, formatDuration, formatTime } from '../time'
 import { useNow } from '../useNow'
 import type { TaskProgress } from './SessionScreen'
@@ -14,12 +14,11 @@ type Props = {
   taskProgress: TaskProgress
   onFinished: (attendance: Attendance) => void
   onCancel: () => void
-  autonomous?: boolean
 }
 
 const REASON_PRESETS = ['오늘 탐구 활동 완료', '정규 일정 종료', '개인 사정으로 조기 종료']
 
-export default function FinishScreen({ day, attendance, taskProgress, onFinished, onCancel, autonomous = false }: Props) {
+export default function FinishScreen({ day, attendance, taskProgress, onFinished, onCancel }: Props) {
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -37,7 +36,7 @@ export default function FinishScreen({ day, attendance, taskProgress, onFinished
     setBusy(true)
     setError('')
     try {
-      onFinished(await (autonomous ? finishAttendanceById(attendance.id, trimmed) : finishAttendance(day.id, trimmed)))
+      onFinished(await finishAttendanceById(attendance.id, trimmed))
     } catch (err) {
       setError(friendlyError(err))
       setBusy(false)
