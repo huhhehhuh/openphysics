@@ -32,6 +32,8 @@ export default function TeamHome({ profile, onSignOut }: TeamHomeProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const journalRef = useRef<HTMLDivElement>(null)
+  const historyPop = useRef(false)
+  const historyInitialized = useRef(false)
   const teamId = profile.team_id
 
   async function loadTeamData() {
@@ -63,6 +65,44 @@ export default function TeamHome({ profile, onSignOut }: TeamHomeProps) {
   }
 
   useEffect(() => { void loadTeamData() }, [teamId])
+
+  useEffect(() => {
+    const currentState = window.history.state && typeof window.history.state === 'object' ? window.history.state : {}
+    window.history.replaceState({ ...currentState, openPhysicsScreen: 'team-home' }, '', window.location.href)
+    historyInitialized.current = true
+
+    function handleHistoryChange(event: PopStateEvent) {
+      const screen = event.state?.openPhysicsScreen
+      if (!screen) return
+      historyPop.current = true
+      setMode(screen === 'team-journal-edit' ? 'edit' : screen === 'team-journal-choose' ? 'choose' : 'home')
+    }
+
+    window.addEventListener('popstate', handleHistoryChange)
+    return () => window.removeEventListener('popstate', handleHistoryChange)
+  }, [])
+
+  useEffect(() => {
+    if (!historyInitialized.current) return
+    if (historyPop.current) {
+      historyPop.current = false
+      return
+    }
+    const screen = mode === 'edit' ? 'team-journal-edit' : mode === 'choose' ? 'team-journal-choose' : 'team-home'
+    if (window.history.state?.openPhysicsScreen === screen) return
+    window.history.pushState({ ...window.history.state, openPhysicsScreen: screen }, '', window.location.href)
+  }, [mode])
+
+  useEffect(() => {
+    function handleBackShortcut(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.key !== '[' || mode === 'home') return
+      event.preventDefault()
+      window.history.back()
+    }
+
+    window.addEventListener('keydown', handleBackShortcut, true)
+    return () => window.removeEventListener('keydown', handleBackShortcut, true)
+  }, [mode])
 
   const selectedDay = opDays.find((day) => day.id === selectedDayId)
   const currentJournal = journals.find((journal) => journal.op_day_id === selectedDayId)
