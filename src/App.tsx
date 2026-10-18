@@ -188,7 +188,7 @@ export default function App() {
       setProfile(null)
       return
     }
-    supabase.from('profiles').select('display_name, role, team_id').eq('id', session.user.id).single()
+    supabase.from('profiles').select('id, display_name, role, team_id').eq('id', session.user.id).single()
       .then(({ data }) => setProfile(data as Profile | null))
   }, [session])
 

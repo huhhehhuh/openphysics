@@ -6,10 +6,15 @@ Supabase에 초기 테이블 8개와 RLS/RPC가 만들어졌고, 교사 계정 1
 
 ## 새 개발자 시작 순서
 
-1. 저장소를 클론하고 `npm install`을 실행합니다.
-2. `.env.example`을 참고하여 본인 컴퓨터에 `.env`를 만듭니다. 저장소 소유자에게 **Project URL**, **Publishable Key**, 팀 이메일 별칭 규칙을 전달받습니다. 비밀번호는 파일이나 채팅 프롬프트에 넣지 않습니다.
-3. `npm run dev`로 실행합니다. 테스트 계정이 필요하면 저장소 소유자와 안전한 방식으로 공유하거나 별도 테스트 계정을 만듭니다.
-4. `README.md`, `docs/database.md`, `docs/sql/initial_schema_applied.sql`을 읽고 개발합니다. 초기 SQL은 이미 적용됐으므로 다시 실행하지 않습니다.
+1. 저장소 소유자가 먼저 현재 코드를 GitHub에 올리고, 팀원을 Collaborator로 초대합니다. 팀원은 초대를 수락합니다.
+2. Windows에 [Node.js LTS](https://nodejs.org/en/download)를 설치합니다. 새 명령 프롬프트에서 `node -v`와 `npm -v`가 모두 버전 번호를 출력하는지 확인합니다.
+3. [GitHub Desktop](https://desktop.github.com/)에서 로그인하고 **File → Clone Repository → URL**에 `https://github.com/huhhehhuh/openphysics.git`을 입력해 클론합니다. 설치된 Git이 있다면 터미널의 `git clone`을 사용해도 됩니다.
+4. 탐색기에서 클론한 `openphysics` 폴더를 엽니다. 주소창에 `cmd`를 입력하고 Enter를 누르면 **바로 그 폴더에서** 명령 프롬프트가 열립니다. 여기서 `npm install`을 실행합니다. `package.json`이 보이는 폴더가 맞습니다.
+5. 같은 창에서 `copy .env.example .env`를 실행합니다. `.env`를 열어 저장소 소유자에게 받은 **Project URL**, **Publishable Key**, 팀 이메일 별칭 규칙을 채웁니다. 사용자 비밀번호는 파일이나 채팅 프롬프트에 넣지 않습니다.
+6. `npm run dev`로 실행하고 터미널에 나온 `http://localhost:5173` 같은 주소를 브라우저에서 엽니다. 테스트 계정이 필요하면 저장소 소유자와 안전한 방식으로 공유하거나 별도 테스트 계정을 만듭니다.
+7. `README.md`, `docs/database.md`, `docs/sql/initial_schema_applied.sql`을 읽고 개발합니다. 초기 SQL은 이미 적용됐으므로 다시 실행하지 않습니다.
+
+명령 프롬프트를 닫거나 `Ctrl + C`를 누르면 로컬 개발 서버만 종료됩니다. 다시 열 때는 `openphysics` 폴더에서 `npm run dev`를 실행합니다. `npm install`은 처음 한 번과 의존성 변경 후에만 다시 실행하면 됩니다.
 
 ## 작업 분담
 
