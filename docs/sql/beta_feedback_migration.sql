@@ -69,7 +69,7 @@ create unique index if not exists journals_team_journal_date_key
   on public.journals(team_id, journal_date);
 
 grant insert (team_id, journal_date, file_path, file_name, content) on public.journals to authenticated;
-grant update (journal_date, file_path, file_name, content) on public.journals to authenticated;
+grant update (team_id, journal_date, file_path, file_name, content) on public.journals to authenticated;
 grant delete on public.journals to authenticated;
 
 -- A team may delete only its own journal; teachers may remove any journal.

@@ -16,6 +16,11 @@ function teamEmail(teamName: string) {
   return template.replace('{teamCode}', teamCode)
 }
 
+function teacherEmail(teacherName: string) {
+  const teachers = JSON.parse(import.meta.env.VITE_TEACHER_EMAILS || '{}') as Record<string, string>
+  return teachers[teacherName.trim()] ?? null
+}
+
 function Login({ onSignedIn }: { onSignedIn: (session: Session) => void }) {
   const [role, setRole] = useState<Role>('team')
   const [identity, setIdentity] = useState('')
@@ -33,9 +38,11 @@ function Login({ onSignedIn }: { onSignedIn: (session: Session) => void }) {
       return
     }
 
-    const email = role === 'teacher' ? identity.trim() : teamEmail(identity)
+    const email = role === 'teacher' ? teacherEmail(identity) : teamEmail(identity)
     if (!email) {
-      setError('등록되지 않은 팀입니다. 팀 이름과 .env 설정을 확인해 주세요.')
+      setError(role === 'teacher'
+        ? '등록되지 않은 선생님입니다. 이름과 .env 설정을 확인해 주세요.'
+        : '등록되지 않은 팀입니다. 팀 이름과 .env 설정을 확인해 주세요.')
       return
     }
 
@@ -68,13 +75,13 @@ function Login({ onSignedIn }: { onSignedIn: (session: Session) => void }) {
         </div>
         <form onSubmit={handleSubmit}>
           <label>
-            {role === 'team' ? '팀 이름' : '이메일'}
+            {role === 'team' ? '팀 이름' : '선생님 이름'}
             <input
-              autoComplete={role === 'team' ? 'username' : 'email'}
+              autoComplete="username"
               autoFocus
               value={identity}
               onChange={(event) => setIdentity(event.target.value)}
-              placeholder={role === 'team' ? '예: 빵상' : 'teacher@example.com'}
+              placeholder={role === 'team' ? '예: 빵상' : '예: 이성빈'}
               required
             />
           </label>

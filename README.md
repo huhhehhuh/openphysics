@@ -5,7 +5,7 @@
 ## 로컬 실행
 
 1. `npm install`
-2. `.env.example`을 `.env`로 복사하고 Supabase Project URL, Publishable Key, 팀 로그인 이메일 별칭 규칙을 입력
+2. `.env.example`을 `.env`로 복사하고 Supabase Project URL, Publishable Key, 팀·교사 이름 로그인용 이메일 연결 규칙을 입력
 3. `npm run dev`
 4. 터미널에 표시된 로컬 주소 열기
 

@@ -5,6 +5,8 @@
 begin;
 
 grant delete on public.journals to authenticated;
+grant insert (team_id, journal_date, file_path, file_name, content) on public.journals to authenticated;
+grant update (team_id, journal_date, file_path, file_name, content) on public.journals to authenticated;
 
 drop policy if exists journals_team_delete on public.journals;
 drop policy if exists journals_delete on public.journals;
