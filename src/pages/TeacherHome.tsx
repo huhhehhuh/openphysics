@@ -9,6 +9,7 @@ type Journal = { id: string; team_id: string; journal_date: string; updated_at: 
 type Feedback = { id: string; content: string; created_at: string }
 type Team = { id: string; name: string }
 type Task = { id: string; op_day_id: string; title: string; sort_order: number }
+type TaskCompletion = { team_id: string; task_id: string; completed_at: string }
 type View = 'overview' | 'schedule' | 'attendance' | 'journals'
 
 const dateFormatter = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
@@ -31,6 +32,7 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
   const [journals, setJournals] = useState<Journal[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [taskCompletions, setTaskCompletions] = useState<TaskCompletion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showScheduleForm, setShowScheduleForm] = useState(false)
@@ -53,20 +55,22 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
     if (!supabase) return
     setLoading(true)
     setError('')
-    const [opDaysResult, attendanceResult, journalsResult, teamsResult, tasksResult] = await Promise.all([
+    const [opDaysResult, attendanceResult, journalsResult, teamsResult, tasksResult, taskCompletionsResult] = await Promise.all([
       supabase.from('op_days').select('id, date, title').order('date'),
       supabase.from('attendance').select('id, team_id, op_day_id, started_at, ended_at, end_reason').order('started_at', { ascending: false }),
       supabase.from('journals').select('id, team_id, journal_date, updated_at, file_path, file_name').order('journal_date', { ascending: false }),
       supabase.from('teams').select('id, name').order('name'),
       supabase.from('tasks').select('id, op_day_id, title, sort_order').order('sort_order'),
+      supabase.from('task_completions').select('team_id, task_id, completed_at'),
     ])
-    const firstError = [opDaysResult, attendanceResult, journalsResult, teamsResult, tasksResult].find((result) => result.error)?.error
+    const firstError = [opDaysResult, attendanceResult, journalsResult, teamsResult, tasksResult, taskCompletionsResult].find((result) => result.error)?.error
     if (firstError) setError('대시보드 데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.')
     setOpDays((opDaysResult.data ?? []) as OpDay[])
     setAttendance((attendanceResult.data ?? []) as Attendance[])
     setJournals((journalsResult.data ?? []) as Journal[])
     setTeams((teamsResult.data ?? []) as Team[])
     setTasks((tasksResult.data ?? []) as Task[])
+    setTaskCompletions((taskCompletionsResult.data ?? []) as TaskCompletion[])
     setLoading(false)
   }
 
@@ -122,6 +126,12 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
   }, [selectedJournal, view])
 
   const teamNames = useMemo(() => new Map(teams.map((team) => [team.id, team.name])), [teams])
+  const completedTaskIdsByTeam = useMemo(() => taskCompletions.reduce<Map<string, Set<string>>>((map, completion) => {
+    const completed = map.get(completion.team_id) ?? new Set<string>()
+    completed.add(completion.task_id)
+    map.set(completion.team_id, completed)
+    return map
+  }, new Map()), [taskCompletions])
   const upcomingDays = opDays.filter((day) => day.date >= localDate()).slice(0, 3)
   const todayOpDay = opDays.find((day) => day.date === localDate())
   const todayAttendance = attendance.filter((item) => dateFromTimestamp(item.started_at) === localDate())
@@ -280,7 +290,7 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
           </form>}
           <div className="management-list">{opDays.length === 0 ? <p className="empty-copy">등록된 OP 일정이 없어요.</p> : opDays.map((day) => { const dayTasks = tasks.filter((task) => task.op_day_id === day.id); return <article className="schedule-management-row" key={day.id}><span>{formatDate(day.date)}</span><div><strong>{day.title}</strong><small>{relativeDay(day.date)}</small>{dayTasks.length > 0 && <ul className="task-preview-list">{dayTasks.map((task) => <li key={task.id}>{task.title}</li>)}</ul>}</div><div className="schedule-row-actions"><button className="schedule-edit-button" onClick={() => openScheduleEditor(day)} type="button">수정</button><button className="schedule-delete-button" disabled={saving} onClick={() => void deleteSchedule(day)} type="button">삭제</button></div></article> })}</div>
         </section>}
-        {view === 'attendance' && <section className="management-view"><div className="management-heading"><div><p className="eyebrow">ATTENDANCE LOG</p><h1>팀별 출결 현황</h1><p>출석 시작·종료 기록과 종료 사유를 확인할 수 있어요.</p></div></div><div className="management-list">{attendance.length === 0 ? <p className="empty-copy">아직 출석 기록이 없어요.</p> : attendance.map((item) => <article key={item.id}><span>{teamNames.get(item.team_id) ?? '참여팀'}</span><div><strong>{titleFor(item.op_day_id)}</strong><small>{new Date(item.started_at).toLocaleString('ko-KR')} 시작 · {item.ended_at ? '출석 종료' : '현재 진행 중'}{item.end_reason ? ` · 사유: ${item.end_reason}` : ''}</small></div></article>)}</div></section>}
+        {view === 'attendance' && <section className="management-view"><div className="management-heading"><div><p className="eyebrow">ATTENDANCE LOG</p><h1>팀별 출결 현황</h1><p>출석 시작·종료 기록, 종료 사유와 과제 수행 현황을 확인할 수 있어요.</p></div></div><div className="management-list">{attendance.length === 0 ? <p className="empty-copy">아직 출석 기록이 없어요.</p> : attendance.map((item) => { const dayTasks = item.op_day_id ? tasks.filter((task) => task.op_day_id === item.op_day_id) : []; const completedTaskIds = completedTaskIdsByTeam.get(item.team_id) ?? new Set<string>(); const completedTaskCount = dayTasks.filter((task) => completedTaskIds.has(task.id)).length; return <article className="attendance-management-row" key={item.id}><span>{teamNames.get(item.team_id) ?? '참여팀'}</span><div><strong>{titleFor(item.op_day_id)}</strong><small>{new Date(item.started_at).toLocaleString('ko-KR')} 시작 · {item.ended_at ? '출석 종료' : '현재 진행 중'}{item.end_reason ? ` · 사유: ${item.end_reason}` : ''}</small>{item.op_day_id ? <section className="attendance-task-status"><b>과제 현황 {completedTaskCount}/{dayTasks.length}</b>{dayTasks.length === 0 ? <p>등록된 과제가 없어요.</p> : <ul>{dayTasks.map((task) => <li className={completedTaskIds.has(task.id) ? 'completed' : ''} key={task.id}>{completedTaskIds.has(task.id) ? '✓' : '○'} {task.title}</li>)}</ul>}</section> : <p className="attendance-task-empty">자율 탐구 출석은 과제 확인 대상이 아니에요.</p>}</div></article> })}</div></section>}
         {view === 'journals' && <section className="management-view"><div className="management-heading"><div><p className="eyebrow">EXPERIMENT JOURNALS</p><h1>실험일지 관리</h1><p>팀이 제출한 PDF를 읽고 피드백을 남길 수 있어요.</p></div></div>{selectedJournal ? <div className="journal-review"><div className="journal-review-bar"><button className="text-button" onClick={() => setSelectedJournal(null)} type="button">← 목록으로</button>{journalFileUrl && <a className="outline-button" href={journalFileUrl} rel="noreferrer" target="_blank">PDF 새 창에서 열기</a>}</div>{journalFileUrl ? <iframe className="journal-pdf-preview" src={journalFileUrl} title={`${teamNames.get(selectedJournal.team_id) ?? '참여팀'} PDF 실험일지`} /> : <p className="empty-copy">이 기록은 이전 양식으로 저장되어 PDF가 없거나, PDF 주소를 불러오지 못했어요.</p>}<section className="feedback-box"><p className="eyebrow">TEACHER FEEDBACK</p><h2>교사 피드백</h2>{feedback.length === 0 ? <p className="empty-copy">아직 남긴 피드백이 없어요.</p> : feedback.map((item) => <article key={item.id}><p>{item.content}</p><small>{new Date(item.created_at).toLocaleString('ko-KR')}</small></article>)}<form onSubmit={saveFeedback}><label>새 피드백<textarea value={feedbackText} onChange={(event) => setFeedbackText(event.target.value)} placeholder="다음 실험을 위한 구체적인 피드백을 작성해 주세요." rows={4} /></label><button className="primary-button compact" disabled={feedbackSaving} type="submit">{feedbackSaving ? '저장 중...' : '피드백 저장'}</button></form></section></div> : <div className="management-list">{journals.length === 0 ? <p className="empty-copy">아직 제출된 PDF가 없어요.</p> : journals.map((journal) => <button className="journal-management-row" key={journal.id} onClick={() => void openJournal(journal)} type="button"><span>{teamNames.get(journal.team_id) ?? '참여팀'}</span><strong>{formatDate(journal.journal_date)}</strong><small>{journal.file_name ?? '기존 양식 기록'} · 마지막 저장: {new Date(journal.updated_at).toLocaleString('ko-KR')}</small><i>→</i></button>)}</div>}</section>}
       </section>
     </div>
