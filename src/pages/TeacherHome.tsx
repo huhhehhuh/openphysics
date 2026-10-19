@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Profile } from '../types'
 
-type TeacherHomeProps = { profile: Profile; onSignOut: () => void }
+type TeacherHomeProps = { profile: Profile; onSignOut: () => void; onRequestPasswordReset: () => Promise<void> }
 type OpDay = { id: string; date: string; title: string }
 type Attendance = { id: string; team_id: string; op_day_id: string | null; started_at: string; ended_at: string | null; end_reason: string | null }
 type Journal = { id: string; team_id: string; journal_date: string; updated_at: string; file_path: string | null; file_name: string | null }
@@ -25,7 +25,7 @@ function relativeDay(value: string) {
   return difference === 0 ? '오늘' : difference === 1 ? '내일' : difference > 1 ? `${difference}일 후` : '지난 일정'
 }
 
-export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
+export default function TeacherHome({ profile, onSignOut, onRequestPasswordReset }: TeacherHomeProps) {
   const [view, setView] = useState<View>('overview')
   const [opDays, setOpDays] = useState<OpDay[]>([])
   const [attendance, setAttendance] = useState<Attendance[]>([])
@@ -255,7 +255,7 @@ export default function TeacherHome({ profile, onSignOut }: TeacherHomeProps) {
   return <main className="teacher-shell">
     <header className="teacher-topbar">
       <button className="wordmark" onClick={() => setView('overview')} type="button">Open Physics</button>
-      <div className="teacher-account"><span>{profile.display_name} 선생님</span><button onClick={onSignOut} type="button">로그아웃</button></div>
+      <div className="teacher-account"><span>{profile.display_name} 선생님</span><button onClick={() => void onRequestPasswordReset()} type="button">비밀번호 변경</button><button onClick={onSignOut} type="button">로그아웃</button></div>
     </header>
     <div className="teacher-layout">
       <aside className="teacher-sidebar" aria-label="교사 메뉴">

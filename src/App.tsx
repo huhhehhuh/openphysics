@@ -209,11 +209,26 @@ export default function App() {
     await supabase?.auth.signOut()
   }
 
+  async function requestPasswordReset() {
+    if (!supabase || !session?.user.email) {
+      window.alert('비밀번호 재설정 이메일을 보낼 계정을 찾지 못했어요.')
+      return
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, {
+      redirectTo: `${window.location.origin}/`,
+    })
+    if (error) {
+      window.alert(`비밀번호 재설정 이메일을 보내지 못했어요: ${error.message}`)
+      return
+    }
+    window.alert('비밀번호 재설정 링크를 현재 계정 이메일로 보냈어요. 이메일의 링크를 열어 새 비밀번호를 설정해 주세요.')
+  }
+
   if (loading) return <main className="loading-screen">Open Physics를 불러오는 중...</main>
   if (passwordRecovery) return <PasswordRecovery onComplete={() => setPasswordRecovery(false)} />
   if (!session) return <Login onSignedIn={setSession} />
   if (!profile) return <main className="loading-screen">권한을 확인하는 중...</main>
   return profile.role === 'teacher'
-    ? <TeacherHome profile={profile} onSignOut={signOut} />
-    : <TeamHome profile={profile} onSignOut={signOut} />
+    ? <TeacherHome profile={profile} onRequestPasswordReset={requestPasswordReset} onSignOut={signOut} />
+    : <TeamHome profile={profile} onRequestPasswordReset={requestPasswordReset} onSignOut={signOut} />
 }
