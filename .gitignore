@@ -3,4 +3,5 @@ dist/
 .env
 .env.local
 supabase/functions/.env
+supabase/.temp/
 .DS_Store
