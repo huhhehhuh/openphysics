@@ -5,11 +5,11 @@
 ## 로컬 실행
 
 1. `npm install`
-2. `.env.example`을 `.env`로 복사하고 Supabase Project URL, Publishable Key, 팀·교사 이름 로그인용 이메일 연결 규칙을 입력
+2. `.env.example`을 `.env`로 복사하고 Supabase Project URL과 Publishable Key를 입력
 3. `npm run dev`
 4. 터미널에 표시된 로컬 주소 열기
 
-`.env`는 Git에서 제외됩니다. 각 개발자가 자기 컴퓨터에 따로 만듭니다. `sb_secret_...`, `service_role`, DB 비밀번호, 사용자 비밀번호를 코드나 GitHub에 넣지 마세요. `VITE_` 변수는 브라우저 번들에 포함되므로 이메일 템플릿에는 개인 이메일보다 프로젝트 전용 주소가 적합합니다.
+`.env`는 Git에서 제외됩니다. 각 개발자가 자기 컴퓨터에 따로 만듭니다. `sb_secret_...`, `service_role`, DB 비밀번호, 사용자 비밀번호를 코드나 GitHub에 넣지 마세요. 새 계정은 [관리자 직접 등록 절차](docs/manual_account_registration.md)에 따라 Supabase에서 만듭니다.
 
 ## 협업 경계
 

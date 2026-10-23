@@ -1,3 +1,5 @@
+-- 과거 셀프 가입 방식: 새 계정에는 사용하지 마세요.
+-- 관리자 직접 등록으로 전환하려면 manual_account_registration.sql을 실행하세요.
 -- OpenPhysics: 공통 참여 코드 기반 팀 가입
 -- Supabase SQL Editor에서 한 번 실행하세요.
 -- 기존 교사/팀 계정, 일정, 출결, 일지는 삭제하거나 변경하지 않습니다.

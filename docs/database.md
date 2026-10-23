@@ -15,7 +15,7 @@
 | `journals` | `id`, `team_id`, `op_day_id`, `content`, `created_at`, `updated_at` | 팀별 일정당 일지 1건. 현재 본문은 `text` 하나 |
 | `journal_feedback` | `id`, `journal_id`, `teacher_id`, `content`, `created_at` | 일지별 교사 댓글 |
 
-`team_id`는 `teams.id`이고, 계정별 팀은 로그인 후 `profiles.team_id`에서 가져옵니다. 팀 이름은 현재 `빵상`, DB의 로그인 코드는 `team01`입니다. 이메일 별칭의 `bbangssang`은 프론트엔드 로그인 변환용 코드이며 DB의 `teams.login_code`와 다릅니다.
+`team_id`는 `teams.id`이고, 계정별 팀은 로그인 후 `profiles.team_id`에서 가져옵니다. `teams.login_code`는 고유한 DB 식별자로, 화면 로그인에는 `teams.name`을 사용합니다.
 
 ## 권한과 시간
 
@@ -28,4 +28,4 @@
 
 ## 로그인 매핑
 
-학생은 팀 이름과 비밀번호를 입력합니다. `src/App.tsx`가 `VITE_TEAM_CODES`에서 팀 이름을 이메일 별칭 코드로 바꾸고, `VITE_TEAM_EMAIL_TEMPLATE`과 결합해 Supabase Auth에 전달합니다. 이 환경변수는 각 개발자 컴퓨터에 필요합니다. 팀이 추가되면 두 개발자의 로컬 설정과 배포 설정을 함께 갱신해야 합니다.
+학생은 팀 이름과 비밀번호, 교사는 `profiles.display_name`과 비밀번호로 로그인합니다. `team-auth` Edge Function이 DB의 팀 이메일 매핑 또는 교사 프로필을 조회하여 Supabase Auth로 인증합니다. 팀/교사 추가에 프런트엔드 환경변수 변경은 필요하지 않습니다. 직접 등록 절차는 [manual_account_registration.md](manual_account_registration.md)를 참조하세요.

@@ -11,7 +11,9 @@ const corsHeaders = {
 
 type TeamAuthRequest = {
   action: 'sign-in' | 'reset-password'
-  teamName: string
+  role?: 'team' | 'teacher'
+  name?: string
+  teamName?: string
   password?: string
 }
 
@@ -27,30 +29,47 @@ Deno.serve(async (request) => {
   if (request.method !== 'POST') return response({ error: 'Method not allowed' }, 405)
 
   const body = await request.json() as TeamAuthRequest
-  const teamName = body.teamName?.trim()
-  if (!teamName || !['sign-in', 'reset-password'].includes(body.action)) {
+  const role = body.role ?? 'team'
+  const name = (body.name ?? body.teamName)?.trim()
+  if (!name || !['team', 'teacher'].includes(role) || !['sign-in', 'reset-password'].includes(body.action)) {
     return response({ error: 'Invalid request' }, 400)
   }
 
   const admin = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
-  const { data: team } = await admin.from('teams').select('id').eq('name', teamName).maybeSingle()
-  if (!team) {
-    return body.action === 'reset-password'
-      ? response({ ok: true })
-      : response({ error: 'Invalid team or password' }, 401)
+  let email: string | undefined
+  if (role === 'team') {
+    const { data: team, error: teamError } = await admin.from('teams').select('id').eq('name', name).maybeSingle()
+    if (teamError) return response({ error: 'Unable to find account' }, 500)
+    if (team) {
+      const { data: credential, error: credentialError } = await admin
+        .from('team_credentials')
+        .select('contact_email')
+        .eq('team_id', team.id)
+        .maybeSingle()
+      if (credentialError) return response({ error: 'Unable to find account' }, 500)
+      email = credential?.contact_email
+    }
+  } else {
+    const { data: profile, error: profileError } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('role', 'teacher')
+      .eq('display_name', name)
+      .maybeSingle()
+    if (profileError) return response({ error: 'Unable to find account' }, 500)
+    if (profile) {
+      const { data: userData, error: userError } = await admin.auth.admin.getUserById(profile.id)
+      if (userError) return response({ error: 'Unable to find account' }, 500)
+      email = userData.user?.email
+    }
   }
 
-  const { data: credential } = await admin
-    .from('team_credentials')
-    .select('contact_email')
-    .eq('team_id', team.id)
-    .maybeSingle()
-  if (!credential) {
+  if (!email) {
     return body.action === 'reset-password'
       ? response({ ok: true })
-      : response({ error: 'Invalid team or password' }, 401)
+      : response({ error: 'Invalid name or password' }, 401)
   }
 
   const auth = createClient(supabaseUrl, supabaseAnonKey, {
@@ -58,18 +77,18 @@ Deno.serve(async (request) => {
   })
 
   if (body.action === 'reset-password') {
-    const { error } = await auth.auth.resetPasswordForEmail(credential.contact_email, {
+    const { error } = await auth.auth.resetPasswordForEmail(email, {
       redirectTo: `${appUrl}/`,
     })
     if (error) return response({ error: 'Unable to send reset email' }, 400)
     return response({ ok: true })
   }
 
-  if (!body.password) return response({ error: 'Invalid team or password' }, 401)
+  if (!body.password) return response({ error: 'Invalid name or password' }, 401)
   const { data, error } = await auth.auth.signInWithPassword({
-    email: credential.contact_email,
+    email,
     password: body.password,
   })
-  if (error || !data.session) return response({ error: 'Invalid team or password' }, 401)
+  if (error || !data.session) return response({ error: 'Invalid name or password' }, 401)
   return response({ session: data.session })
 })

@@ -7,34 +7,15 @@ import type { Profile } from './types'
 
 type Role = 'team' | 'teacher'
 
-function legacyTeamEmail(teamName: string) {
-  const codes = JSON.parse(import.meta.env.VITE_TEAM_CODES || '{}') as Record<string, string>
-  const teamCode = codes[teamName.trim()]
-  const template = import.meta.env.VITE_TEAM_EMAIL_TEMPLATE as string | undefined
-
-  if (!teamCode || !template) return null
-  return template.replace('{teamCode}', teamCode)
-}
-
-function teacherEmail(teacherName: string) {
-  const teachers = JSON.parse(import.meta.env.VITE_TEACHER_EMAILS || '{}') as Record<string, string>
-  return teachers[teacherName.trim()] ?? null
-}
-
 function Login({ onSignedIn }: { onSignedIn: (session: Session) => void }) {
   const [role, setRole] = useState<Role>('team')
-  const [screen, setScreen] = useState<'sign-in' | 'team-signup' | 'team-recovery'>('sign-in')
+  const [screen, setScreen] = useState<'sign-in' | 'recovery'>('sign-in')
   const [identity, setIdentity] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [signupTeamName, setSignupTeamName] = useState('')
-  const [signupEmail, setSignupEmail] = useState('')
-  const [participationCode, setParticipationCode] = useState('')
-  const [signupPassword, setSignupPassword] = useState('')
-  const [signupPasswordAgain, setSignupPasswordAgain] = useState('')
-  const [signupLoading, setSignupLoading] = useState(false)
-  const [signupError, setSignupError] = useState('')
-  const [signupMessage, setSignupMessage] = useState('')
+  const [recoveryLoading, setRecoveryLoading] = useState(false)
+  const [recoveryError, setRecoveryError] = useState('')
+  const [recoveryMessage, setRecoveryMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -48,121 +29,45 @@ function Login({ onSignedIn }: { onSignedIn: (session: Session) => void }) {
     }
 
     setLoading(true)
-    if (role === 'team') {
-      const legacyEmail = legacyTeamEmail(identity)
-      if (legacyEmail) {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: legacyEmail, password })
-        setLoading(false)
-        if (signInError || !data.session) {
-          setError('팀 이름 또는 비밀번호를 확인해 주세요.')
-          return
-        }
-        onSignedIn(data.session)
-        return
-      }
-
-      const { data, error: functionError } = await supabase.functions.invoke('team-auth', {
-        body: { action: 'sign-in', teamName: identity.trim(), password },
-      })
-      setLoading(false)
-      const session = data?.session as Session | undefined
-      if (functionError || !session?.access_token || !session.refresh_token) {
-        setError('팀 이름 또는 비밀번호를 확인해 주세요.')
-        return
-      }
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      })
-      if (sessionError) {
-        setError('로그인 정보를 저장하지 못했어요. 다시 시도해 주세요.')
-        return
-      }
-      onSignedIn(session)
-      return
-    }
-
-    const email = teacherEmail(identity)
-    if (!email) {
-      setLoading(false)
-      setError('등록되지 않은 선생님입니다. 이름과 .env 설정을 확인해 주세요.')
-      return
-    }
-
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error: functionError } = await supabase.functions.invoke('team-auth', {
+      body: { action: 'sign-in', role, name: identity.trim(), password },
+    })
     setLoading(false)
-
-    if (signInError || !data.session) {
-      setError('아이디 또는 비밀번호를 확인해 주세요.')
+    const session = data?.session as Session | undefined
+    if (functionError || !session?.access_token || !session.refresh_token) {
+      setError(`${role === 'team' ? '팀' : '선생님'} 이름 또는 비밀번호를 확인해 주세요.`)
       return
     }
-
-    onSignedIn(data.session)
-  }
-
-  async function handleTeamSignup(event: FormEvent) {
-    event.preventDefault()
-    setSignupError('')
-    setSignupMessage('')
-
-    if (!supabase) {
-      setSignupError('Supabase 연결 정보를 먼저 설정해 주세요.')
-      return
-    }
-    if (signupPassword.length < 8) {
-      setSignupError('비밀번호는 8자 이상으로 입력해 주세요.')
-      return
-    }
-    if (signupPassword !== signupPasswordAgain) {
-      setSignupError('비밀번호가 서로 일치하지 않아요.')
-      return
-    }
-
-    setSignupLoading(true)
-    const { data, error: signupRequestError } = await supabase.auth.signUp({
-      email: signupEmail.trim(),
-      password: signupPassword,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          openphysics_signup: 'team',
-          team_name: signupTeamName.trim(),
-          participation_code: participationCode,
-        },
-      },
+    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
     })
-    setSignupLoading(false)
-
-    if (signupRequestError) {
-      setSignupError(signupRequestError.message)
+    if (sessionError || !sessionData.session) {
+      setError('로그인 정보를 저장하지 못했어요. 다시 시도해 주세요.')
       return
     }
-    if (data.session) {
-      onSignedIn(data.session)
-      return
-    }
-    setSignupMessage('가입 확인 이메일을 보냈어요. 이메일의 링크를 연 뒤 로그인해 주세요.')
+    onSignedIn(sessionData.session)
   }
 
-  async function handleTeamPasswordRecovery(event: FormEvent) {
+  async function handlePasswordRecovery(event: FormEvent) {
     event.preventDefault()
-    setSignupError('')
-    setSignupMessage('')
+    setRecoveryError('')
+    setRecoveryMessage('')
     if (!supabase) {
-      setSignupError('Supabase 연결 정보를 먼저 설정해 주세요.')
+      setRecoveryError('Supabase 연결 정보를 먼저 설정해 주세요.')
       return
     }
 
-    setSignupLoading(true)
+    setRecoveryLoading(true)
     const { error: functionError } = await supabase.functions.invoke('team-auth', {
-      body: { action: 'reset-password', teamName: identity.trim() },
+      body: { action: 'reset-password', role, name: identity.trim() },
     })
-    setSignupLoading(false)
+    setRecoveryLoading(false)
     if (functionError) {
-      setSignupError('재설정 요청을 처리하지 못했어요. 팀 이름을 확인하거나 선생님에게 문의해 주세요.')
+      setRecoveryError('재설정 요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.')
       return
     }
-    setSignupMessage('등록된 인증용 이메일로 비밀번호 재설정 링크를 보냈어요.')
+    setRecoveryMessage('등록된 이메일이 있다면 비밀번호 재설정 링크를 보냈어요.')
   }
 
   return (
@@ -172,7 +77,7 @@ function Login({ onSignedIn }: { onSignedIn: (session: Session) => void }) {
         <h1>Open<br />Physics</h1>
         <p>탐구의 과정이 기록이 되는 곳.<br />오늘의 실험을 시작해 보세요.</p>
       </section>
-      <section className="login-card" aria-label={screen === 'sign-in' ? '로그인' : '팀 계정 만들기'}>
+      <section className="login-card" aria-label={screen === 'sign-in' ? '로그인' : '비밀번호 재설정'}>
         <div className="logo-mark">OP</div>
         {screen === 'sign-in' ? <>
           <h2>다시 만나서 반가워요.</h2>
@@ -214,55 +119,22 @@ function Login({ onSignedIn }: { onSignedIn: (session: Session) => void }) {
               {loading ? '로그인 중...' : '로그인'} <span>→</span>
             </button>
           </form>
-          {role === 'team' && <div className="login-secondary-actions"><button className="login-secondary-action" type="button" onClick={() => setScreen('team-signup')}>새 팀 계정 만들기</button><button className="login-secondary-action" type="button" onClick={() => setScreen('team-recovery')}>비밀번호를 잊으셨나요?</button></div>}
+          <div className="login-secondary-actions"><button className="login-secondary-action" type="button" onClick={() => setScreen('recovery')}>비밀번호를 잊으셨나요?</button></div>
         </> : <>
-          {screen === 'team-signup' ? <>
-            <h2>팀 계정 만들기</h2>
-            <p className="muted">참여 코드가 맞으면 팀 계정이 바로 만들어져요.</p>
-            <form onSubmit={handleTeamSignup}>
+          <h2>비밀번호 재설정</h2>
+          <p className="muted">등록한 인증용 이메일로 재설정 링크를 보냅니다.</p>
+          <form onSubmit={handlePasswordRecovery}>
             <label>
-              팀 이름
-              <input autoFocus value={signupTeamName} onChange={(event) => setSignupTeamName(event.target.value)} placeholder="예: 탐구 1팀" required />
+              {role === 'team' ? '팀 이름' : '선생님 이름'}
+              <input autoFocus value={identity} onChange={(event) => setIdentity(event.target.value)} placeholder={role === 'team' ? '예: 빵상' : '예: 임미옥'} required />
             </label>
-            <label>
-              팀 이메일
-              <input type="email" autoComplete="email" value={signupEmail} onChange={(event) => setSignupEmail(event.target.value)} placeholder="team@example.com" required />
-            </label>
-            <label>
-              참여 코드
-              <input value={participationCode} onChange={(event) => setParticipationCode(event.target.value)} placeholder="선생님에게 받은 공통 코드" required />
-            </label>
-            <label>
-              비밀번호
-              <input type="password" autoComplete="new-password" value={signupPassword} onChange={(event) => setSignupPassword(event.target.value)} placeholder="8자 이상" required />
-            </label>
-            <label>
-              비밀번호 확인
-              <input type="password" autoComplete="new-password" value={signupPasswordAgain} onChange={(event) => setSignupPasswordAgain(event.target.value)} placeholder="비밀번호를 다시 입력" required />
-            </label>
-            {signupError && <p className="error" role="alert">{signupError}</p>}
-            {signupMessage && <p className="signup-message" role="status">{signupMessage}</p>}
-            <button className="primary-button" disabled={signupLoading} type="submit">
-              {signupLoading ? '계정 만드는 중...' : '팀 계정 만들기'} <span>→</span>
+            {recoveryError && <p className="error" role="alert">{recoveryError}</p>}
+            {recoveryMessage && <p className="signup-message" role="status">{recoveryMessage}</p>}
+            <button className="primary-button" disabled={recoveryLoading} type="submit">
+              {recoveryLoading ? '전송 중...' : '재설정 링크 보내기'} <span>→</span>
             </button>
-            </form>
-            <button className="login-secondary-action" type="button" onClick={() => setScreen('sign-in')}>로그인으로 돌아가기</button>
-          </> : <>
-            <h2>비밀번호 재설정</h2>
-            <p className="muted">등록한 인증용 이메일로 재설정 링크를 보냅니다.</p>
-            <form onSubmit={handleTeamPasswordRecovery}>
-              <label>
-                팀 이름
-                <input autoFocus value={identity} onChange={(event) => setIdentity(event.target.value)} placeholder="예: 빵상" required />
-              </label>
-              {signupError && <p className="error" role="alert">{signupError}</p>}
-              {signupMessage && <p className="signup-message" role="status">{signupMessage}</p>}
-              <button className="primary-button" disabled={signupLoading} type="submit">
-                {signupLoading ? '전송 중...' : '재설정 링크 보내기'} <span>→</span>
-              </button>
-            </form>
-            <button className="login-secondary-action" type="button" onClick={() => setScreen('sign-in')}>로그인으로 돌아가기</button>
-          </>}
+          </form>
+          <button className="login-secondary-action" type="button" onClick={() => setScreen('sign-in')}>로그인으로 돌아가기</button>
         </>}
         {!isSupabaseConfigured && <p className="setup-note">개발 모드: `.env` 설정 후 실제 로그인할 수 있어요.</p>}
       </section>
@@ -338,6 +210,8 @@ function PasswordRecovery({ onComplete }: { onComplete: () => void }) {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileCheckedUserId, setProfileCheckedUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
 
@@ -357,11 +231,22 @@ export default function App() {
   useEffect(() => {
     if (!supabase || !session) {
       setProfile(null)
+      setProfileLoading(false)
+      setProfileCheckedUserId(null)
       return
     }
+    let active = true
+    setProfileLoading(true)
     supabase.from('profiles').select('id, display_name, role, team_id').eq('id', session.user.id).single()
-      .then(({ data }) => setProfile(data as Profile | null))
-  }, [session])
+      .then(({ data }) => {
+        if (active) {
+          setProfile(data as Profile | null)
+          setProfileCheckedUserId(session.user.id)
+          setProfileLoading(false)
+        }
+      })
+    return () => { active = false }
+  }, [session?.user.id])
 
   async function signOut() {
     await supabase?.auth.signOut()
@@ -385,7 +270,8 @@ export default function App() {
   if (loading) return <main className="loading-screen">Open Physics를 불러오는 중...</main>
   if (passwordRecovery) return <PasswordRecovery onComplete={() => setPasswordRecovery(false)} />
   if (!session) return <Login onSignedIn={setSession} />
-  if (!profile) return <main className="loading-screen">권한을 확인하는 중...</main>
+  if (profileLoading || profileCheckedUserId !== session.user.id) return <main className="loading-screen">권한을 확인하는 중...</main>
+  if (!profile) return <main className="loading-screen">프로필이 등록되지 않았어요. 관리자에게 문의해 주세요.<button onClick={() => void signOut()} type="button">로그아웃</button></main>
   return profile.role === 'teacher'
     ? <TeacherHome profile={profile} onRequestPasswordReset={requestPasswordReset} onSignOut={signOut} />
     : <TeamHome profile={profile} onRequestPasswordReset={requestPasswordReset} onSignOut={signOut} />
