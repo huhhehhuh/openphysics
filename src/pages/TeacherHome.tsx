@@ -11,6 +11,7 @@ type Team = { id: string; name: string }
 type Task = { id: string; op_day_id: string; title: string; sort_order: number }
 type TaskCompletion = { team_id: string; task_id: string; completed_at: string }
 type View = 'overview' | 'schedule' | 'attendance' | 'journals'
+type JournalListMode = 'recent' | 'team'
 
 const dateFormatter = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
 
@@ -23,6 +24,13 @@ function relativeDay(value: string) {
   const target = new Date(`${value}T00:00:00`).getTime()
   const difference = Math.round((target - today) / 86_400_000)
   return difference === 0 ? '오늘' : difference === 1 ? '내일' : difference > 1 ? `${difference}일 후` : '지난 일정'
+}
+
+function daysSince(value: string) {
+  const today = new Date(`${localDate()}T00:00:00`).getTime()
+  const target = new Date(`${value}T00:00:00`).getTime()
+  const difference = Math.round((today - target) / 86_400_000)
+  return difference <= 0 ? '오늘' : `${difference}일 전`
 }
 
 export default function TeacherHome({ profile, onSignOut, onRequestPasswordReset }: TeacherHomeProps) {
@@ -43,6 +51,7 @@ export default function TeacherHome({ profile, onSignOut, onRequestPasswordReset
   const [scheduleTaskIds, setScheduleTaskIds] = useState<Array<string | null>>([null])
   const [editingSchedule, setEditingSchedule] = useState<OpDay | null>(null)
   const [selectedJournal, setSelectedJournal] = useState<Journal | null>(null)
+  const [journalListMode, setJournalListMode] = useState<JournalListMode>('recent')
   const [feedback, setFeedback] = useState<Feedback[]>([])
   const [feedbackText, setFeedbackText] = useState('')
   const [feedbackSaving, setFeedbackSaving] = useState(false)
@@ -126,6 +135,13 @@ export default function TeacherHome({ profile, onSignOut, onRequestPasswordReset
   }, [selectedJournal, view])
 
   const teamNames = useMemo(() => new Map(teams.map((team) => [team.id, team.name])), [teams])
+  const latestJournalByTeam = useMemo(() => journals.reduce<Map<string, Journal>>((latestByTeam, journal) => {
+    const latest = latestByTeam.get(journal.team_id)
+    if (!latest || journal.journal_date > latest.journal_date || (journal.journal_date === latest.journal_date && journal.updated_at > latest.updated_at)) {
+      latestByTeam.set(journal.team_id, journal)
+    }
+    return latestByTeam
+  }, new Map()), [journals])
   const completedTaskIdsByTeam = useMemo(() => taskCompletions.reduce<Map<string, Set<string>>>((map, completion) => {
     const completed = map.get(completion.team_id) ?? new Set<string>()
     completed.add(completion.task_id)
@@ -291,7 +307,16 @@ export default function TeacherHome({ profile, onSignOut, onRequestPasswordReset
           <div className="management-list">{opDays.length === 0 ? <p className="empty-copy">등록된 OP 일정이 없어요.</p> : opDays.map((day) => { const dayTasks = tasks.filter((task) => task.op_day_id === day.id); return <article className="schedule-management-row" key={day.id}><span>{formatDate(day.date)}</span><div><strong>{day.title}</strong><small>{relativeDay(day.date)}</small>{dayTasks.length > 0 && <ul className="task-preview-list">{dayTasks.map((task) => <li key={task.id}>{task.title}</li>)}</ul>}</div><div className="schedule-row-actions"><button className="schedule-edit-button" onClick={() => openScheduleEditor(day)} type="button">수정</button><button className="schedule-delete-button" disabled={saving} onClick={() => void deleteSchedule(day)} type="button">삭제</button></div></article> })}</div>
         </section>}
         {view === 'attendance' && <section className="management-view"><div className="management-heading"><div><p className="eyebrow">ATTENDANCE LOG</p><h1>팀별 출결 현황</h1><p>출석 시작·종료 기록, 종료 사유와 과제 수행 현황을 확인할 수 있어요.</p></div></div><div className="management-list">{attendance.length === 0 ? <p className="empty-copy">아직 출석 기록이 없어요.</p> : attendance.map((item) => { const dayTasks = item.op_day_id ? tasks.filter((task) => task.op_day_id === item.op_day_id) : []; const completedTaskIds = completedTaskIdsByTeam.get(item.team_id) ?? new Set<string>(); const completedTaskCount = dayTasks.filter((task) => completedTaskIds.has(task.id)).length; return <article className="attendance-management-row" key={item.id}><header className="attendance-record-header"><strong>{teamNames.get(item.team_id) ?? '참여팀'}</strong><span className={item.ended_at ? 'attendance-status complete' : 'attendance-status active'}>{item.ended_at ? '출석 종료' : '진행 중'}</span></header><dl className="attendance-detail-grid"><div><dt>일정</dt><dd>{titleFor(item.op_day_id)}</dd></div><div><dt>출석 시작</dt><dd>{new Date(item.started_at).toLocaleString('ko-KR')}</dd></div><div><dt>출석 종료</dt><dd>{item.ended_at ? new Date(item.ended_at).toLocaleString('ko-KR') : '–'}</dd></div><div><dt>종료 사유</dt><dd>{item.end_reason || '–'}</dd></div></dl>{item.op_day_id ? <section className="attendance-task-status"><b>과제 현황 <em>{completedTaskCount}/{dayTasks.length}</em></b>{dayTasks.length === 0 ? <p>등록된 과제가 없어요.</p> : <ul>{dayTasks.map((task) => <li className={completedTaskIds.has(task.id) ? 'completed' : ''} key={task.id}>{completedTaskIds.has(task.id) ? '✓' : '○'} {task.title}</li>)}</ul>}</section> : <p className="attendance-task-empty">자율 탐구 출석은 과제 확인 대상이 아니에요.</p>}</article> })}</div></section>}
-        {view === 'journals' && <section className="management-view"><div className="management-heading"><div><p className="eyebrow">EXPERIMENT JOURNALS</p><h1>실험일지 관리</h1><p>팀이 제출한 PDF를 읽고 피드백을 남길 수 있어요.</p></div></div>{selectedJournal ? <div className="journal-review"><div className="journal-review-bar"><button className="text-button" onClick={() => setSelectedJournal(null)} type="button">← 목록으로</button>{journalFileUrl && <a className="outline-button" href={journalFileUrl} rel="noreferrer" target="_blank">PDF 새 창에서 열기</a>}</div>{journalFileUrl ? <iframe className="journal-pdf-preview" src={journalFileUrl} title={`${teamNames.get(selectedJournal.team_id) ?? '참여팀'} PDF 실험일지`} /> : <p className="empty-copy">이 기록은 이전 양식으로 저장되어 PDF가 없거나, PDF 주소를 불러오지 못했어요.</p>}<section className="feedback-box"><p className="eyebrow">TEACHER FEEDBACK</p><h2>교사 피드백</h2>{feedback.length === 0 ? <p className="empty-copy">아직 남긴 피드백이 없어요.</p> : feedback.map((item) => <article key={item.id}><p>{item.content}</p><small>{new Date(item.created_at).toLocaleString('ko-KR')}</small></article>)}<form onSubmit={saveFeedback}><label>새 피드백<textarea value={feedbackText} onChange={(event) => setFeedbackText(event.target.value)} placeholder="다음 실험을 위한 구체적인 피드백을 작성해 주세요." rows={4} /></label><button className="primary-button compact" disabled={feedbackSaving} type="submit">{feedbackSaving ? '저장 중...' : '피드백 저장'}</button></form></section></div> : <div className="management-list">{journals.length === 0 ? <p className="empty-copy">아직 제출된 PDF가 없어요.</p> : journals.map((journal) => <button className="journal-management-row" key={journal.id} onClick={() => void openJournal(journal)} type="button"><span>{teamNames.get(journal.team_id) ?? '참여팀'}</span><strong>{formatDate(journal.journal_date)}</strong><small>{journal.file_name ?? '기존 양식 기록'} · 마지막 저장: {new Date(journal.updated_at).toLocaleString('ko-KR')}</small><i>→</i></button>)}</div>}</section>}
+        {view === 'journals' && <section className="management-view">
+          <div className="management-heading"><div><p className="eyebrow">EXPERIMENT JOURNALS</p><h1>실험일지 관리</h1><p>팀이 제출한 PDF를 읽고 피드백을 남길 수 있어요.</p></div></div>
+          {selectedJournal ? <div className="journal-review"><div className="journal-review-bar"><button className="text-button" onClick={() => setSelectedJournal(null)} type="button">← 목록으로</button>{journalFileUrl && <a className="outline-button" href={journalFileUrl} rel="noreferrer" target="_blank">PDF 새 창에서 열기</a>}</div>{journalFileUrl ? <iframe className="journal-pdf-preview" src={journalFileUrl} title={`${teamNames.get(selectedJournal.team_id) ?? '참여팀'} PDF 실험일지`} /> : <p className="empty-copy">이 기록은 이전 양식으로 저장되어 PDF가 없거나, PDF 주소를 불러오지 못했어요.</p>}<section className="feedback-box"><p className="eyebrow">TEACHER FEEDBACK</p><h2>교사 피드백</h2>{feedback.length === 0 ? <p className="empty-copy">아직 남긴 피드백이 없어요.</p> : feedback.map((item) => <article key={item.id}><p>{item.content}</p><small>{new Date(item.created_at).toLocaleString('ko-KR')}</small></article>)}<form onSubmit={saveFeedback}><label>새 피드백<textarea value={feedbackText} onChange={(event) => setFeedbackText(event.target.value)} placeholder="다음 실험을 위한 구체적인 피드백을 작성해 주세요." rows={4} /></label><button className="primary-button compact" disabled={feedbackSaving} type="submit">{feedbackSaving ? '저장 중...' : '피드백 저장'}</button></form></section></div> : <>
+            <div aria-label="실험일지 보기 방식" className="journal-list-tabs" role="tablist">
+              <button aria-selected={journalListMode === 'recent'} className={journalListMode === 'recent' ? 'active' : ''} onClick={() => setJournalListMode('recent')} role="tab" type="button">최근순 보기</button>
+              <button aria-selected={journalListMode === 'team'} className={journalListMode === 'team' ? 'active' : ''} onClick={() => setJournalListMode('team')} role="tab" type="button">팀별 보기</button>
+            </div>
+            {journalListMode === 'recent' ? <div className="management-list">{journals.length === 0 ? <p className="empty-copy">아직 제출된 PDF가 없어요.</p> : journals.map((journal) => <button className="journal-management-row" key={journal.id} onClick={() => void openJournal(journal)} type="button"><span>{teamNames.get(journal.team_id) ?? '참여팀'}</span><strong>{formatDate(journal.journal_date)}</strong><small>{journal.file_name ?? '기존 양식 기록'} · 마지막 저장: {new Date(journal.updated_at).toLocaleString('ko-KR')}</small><i>→</i></button>)}</div> : <div className="team-journal-overview">{teams.length === 0 ? <p className="empty-copy">등록된 참여팀이 없어요.</p> : teams.map((team) => { const journal = latestJournalByTeam.get(team.id); return <button className="team-journal-overview-row" disabled={!journal} key={team.id} onClick={() => journal && void openJournal(journal)} type="button"><span className="team-journal-name">{team.name}</span><span className="team-journal-latest"><small>마지막 실험일지 제출</small><strong>{journal ? `${formatDate(journal.journal_date)} · ${daysSince(journal.journal_date)}` : '제출 기록 없음'}</strong></span>{journal && <i>→</i>}</button> })}</div>}
+          </>}
+        </section>}
       </section>
     </div>
   </main>
