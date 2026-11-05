@@ -10,7 +10,7 @@ import type { Profile } from '../types'
 
 type TeamHomeProps = { profile: Profile; onSignOut: () => void; onRequestPasswordReset: () => Promise<void> }
 type OpDay = TeamOpDay
-type Journal = { id: string; op_day_id: string | null; journal_date: string; updated_at: string; file_path: string | null; file_name: string | null }
+type Journal = { id: string; op_day_id: string | null; journal_date: string; updated_at: string; file_path: string | null; file_name: string | null; submitter_student_number: string | null; submitter_name: string | null }
 type TeacherReference = { display_name: string } | { display_name: string }[] | null
 type JournalFeedback = { id: string; journal_id: string; content: string; created_at: string; teacher: TeacherReference }
 type TeamMode = 'home' | 'calendar' | 'session' | 'tasks' | 'finish' | 'journal'
@@ -42,6 +42,8 @@ export default function TeamHome({ profile, onSignOut, onRequestPasswordReset }:
   const [selectedAttendanceId, setSelectedAttendanceId] = useState('')
   const [journalDate, setJournalDate] = useState(koreaDate())
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [submitterStudentNumber, setSubmitterStudentNumber] = useState('')
+  const [submitterName, setSubmitterName] = useState('')
   const [mode, setMode] = useState<TeamMode>('home')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -56,7 +58,7 @@ export default function TeamHome({ profile, onSignOut, onRequestPasswordReset }:
     setLoading(true)
     const [daysResult, journalsResult, attendanceResult] = await Promise.all([
       supabase.from('op_days').select('id, date, title, starts_at, ends_at').order('date'),
-      supabase.from('journals').select('id, op_day_id, journal_date, updated_at, file_path, file_name').eq('team_id', teamId).order('journal_date', { ascending: false }),
+      supabase.from('journals').select('id, op_day_id, journal_date, updated_at, file_path, file_name, submitter_student_number, submitter_name').eq('team_id', teamId).order('journal_date', { ascending: false }),
       supabase.from('attendance').select('id, team_id, op_day_id, started_at, ended_at, end_reason').eq('team_id', teamId).order('started_at', { ascending: false }),
     ])
     if (daysResult.error || journalsResult.error || attendanceResult.error) setError('팀 데이터를 불러오지 못했어요. DB 확장 SQL 적용 여부를 확인해 주세요.')
@@ -123,7 +125,14 @@ export default function TeamHome({ profile, onSignOut, onRequestPasswordReset }:
   const currentJournal = journals.find((journal) => journal.journal_date === koreaDate()) ?? null
   const todayJournal = journals.find((journal) => journal.journal_date === koreaDate()) ?? null
 
-  function openJournal() { setError(''); setJournalDate(koreaDate()); setSelectedFile(null); setMode('journal') }
+  function openJournal() {
+    setError('')
+    setJournalDate(koreaDate())
+    setSelectedFile(null)
+    setSubmitterStudentNumber(currentJournal?.submitter_student_number ?? '')
+    setSubmitterName(currentJournal?.submitter_name ?? '')
+    setMode('journal')
+  }
   function selectAttendance(attendance: Attendance) { setSelectedAttendanceId(attendance.id); setSelectedDayId(attendance.op_day_id ?? AUTONOMOUS_DAY_ID); setMode('session') }
 
   async function startToday() {
@@ -147,12 +156,15 @@ export default function TeamHome({ profile, onSignOut, onRequestPasswordReset }:
     if (!supabase || !teamId || !selectedFile) { setError('업로드할 PDF 파일을 선택해 주세요.'); return }
     if (selectedFile.type !== 'application/pdf' && !selectedFile.name.toLowerCase().endsWith('.pdf')) { setError('PDF 파일만 제출할 수 있어요.'); return }
     if (selectedFile.size > 15 * 1024 * 1024) { setError('PDF 파일은 15MB 이하만 업로드할 수 있어요.'); return }
+    const studentNumber = submitterStudentNumber.trim()
+    const submitter = submitterName.trim()
+    if (!studentNumber || !submitter) { setError('제출자 학번과 이름을 모두 입력해 주세요.'); return }
     setSaving(true); setError('')
     const submissionDate = koreaDate()
     const path = `${teamId}/${submissionDate}/${crypto.randomUUID()}.pdf`
     const { error: uploadError } = await supabase.storage.from(JOURNAL_BUCKET).upload(path, selectedFile, { contentType: 'application/pdf' })
     if (uploadError) { setSaving(false); setError(`PDF 업로드에 실패했어요: ${uploadError.message}`); return }
-    const { error: saveError } = await supabase.from('journals').upsert({ team_id: teamId, journal_date: submissionDate, file_path: path, file_name: selectedFile.name, content: '' }, { onConflict: 'team_id,journal_date' })
+    const { error: saveError } = await supabase.from('journals').upsert({ team_id: teamId, journal_date: submissionDate, file_path: path, file_name: selectedFile.name, content: '', submitter_student_number: studentNumber, submitter_name: submitter }, { onConflict: 'team_id,journal_date' })
     if (saveError) {
       await supabase.storage.from(JOURNAL_BUCKET).remove([path])
       setSaving(false); setError(`제출 기록을 저장하지 못했어요: ${saveError.message}`); return
@@ -195,7 +207,7 @@ export default function TeamHome({ profile, onSignOut, onRequestPasswordReset }:
     return <main className="app-shell team-shell"><header className="topbar"><strong>Open Physics</strong><button onClick={() => window.history.back()} type="button">← 이전으로</button></header>{mode === 'session' ? <SessionScreen day={shownSessionDay} attendance={selectedAttendance} taskProgress={tasksAvailable ? taskProgress : null} tasksAvailable={tasksAvailable} onOpenTasks={() => { if (tasksAvailable) { setSelectedDayId(selectedAttendance.op_day_id!); setMode('tasks') } }} onWriteJournal={() => openJournal()} onOpenJournalList={() => setMode('home')} onFinish={() => setMode('finish')} /> : <FinishScreen day={shownSessionDay} attendance={selectedAttendance} taskProgress={tasksAvailable ? taskProgress : null} onFinished={handleFinished} onCancel={() => setMode('session')} />}</main>
   }
 
-  if (mode === 'journal') return <main className="app-shell journal-shell"><header className="topbar"><strong>Open Physics</strong><button onClick={() => window.history.back()} type="button">← 이전으로</button></header><section className="journal-editor pdf-journal-editor"><div className="journal-editor-intro"><p className="eyebrow">PDF EXPERIMENT JOURNAL</p><h1>오늘의 실험일지 PDF 제출</h1><p>실험일지는 오늘 날짜에 한 개만 제출할 수 있어요. 오늘 다시 올리면 기존 파일이 새 파일로 교체됩니다.</p><p><b>제출 형식은 PDF만 가능합니다.</b> HWP, Word, 이미지 등 다른 파일은 제출할 수 없어요. 파일 크기는 15MB 이하로 준비해 주세요.</p></div>{error && <p className="error">{error}</p>}<section className="pdf-upload-card"><strong>{displayDate(koreaDate())}</strong>{currentJournal?.file_name ? <p>현재 제출본: <b>{currentJournal.file_name}</b></p> : <p>아직 오늘 제출한 PDF가 없어요.</p>}{currentJournal?.file_path && <button className="outline-button" onClick={() => void openJournalPdf(currentJournal)} type="button">현재 PDF 열기</button>}<label className="pdf-file-input">새 PDF 선택 (PDF만 가능)<input accept="application/pdf,.pdf" onChange={(event: ChangeEvent<HTMLInputElement>) => setSelectedFile(event.target.files?.[0] ?? null)} type="file" />{selectedFile && <span>{selectedFile.name} · {(selectedFile.size / 1024 / 1024).toFixed(1)}MB</span>}</label></section><div className="journal-actions">{currentJournal && <button className="danger-button" disabled={saving} onClick={() => void deleteJournal()} type="button">일지 삭제</button>}<button className="outline-button" onClick={() => setMode('home')} type="button">나중에 제출하기</button><button className="primary-button" disabled={saving || !selectedFile} onClick={() => void uploadJournal()} type="button">{saving ? '업로드 중...' : currentJournal ? '새 PDF로 교체 제출' : '오늘 PDF 제출하기'}</button></div></section></main>
+  if (mode === 'journal') return <main className="app-shell journal-shell"><header className="topbar"><strong>Open Physics</strong><button onClick={() => window.history.back()} type="button">← 이전으로</button></header><section className="journal-editor pdf-journal-editor"><div className="journal-editor-intro"><p className="eyebrow">PDF EXPERIMENT JOURNAL</p><h1>오늘의 실험일지 PDF 제출</h1><p>실험일지는 오늘 날짜에 한 개만 제출할 수 있어요. 오늘 다시 올리면 기존 파일이 새 파일로 교체됩니다.</p><p><b>제출 형식은 PDF만 가능합니다.</b> HWP, Word, 이미지 등 다른 파일은 제출할 수 없어요. 파일 크기는 15MB 이하로 준비해 주세요.</p></div>{error && <p className="error">{error}</p>}<section className="pdf-upload-card"><strong>{displayDate(koreaDate())}</strong>{currentJournal?.file_name ? <p>현재 제출본: <b>{currentJournal.file_name}</b></p> : <p>아직 오늘 제출한 PDF가 없어요.</p>}{currentJournal?.file_path && <button className="outline-button" onClick={() => void openJournalPdf(currentJournal)} type="button">현재 PDF 열기</button>}<div className="journal-submitter-fields"><label>제출자 학번<input autoComplete="off" onChange={(event) => setSubmitterStudentNumber(event.target.value)} placeholder="예: 10101" value={submitterStudentNumber} /></label><label>제출자 이름<input autoComplete="name" onChange={(event) => setSubmitterName(event.target.value)} placeholder="예: 홍길동" value={submitterName} /></label></div><label className="pdf-file-input">새 PDF 선택 (PDF만 가능)<input accept="application/pdf,.pdf" onChange={(event: ChangeEvent<HTMLInputElement>) => setSelectedFile(event.target.files?.[0] ?? null)} type="file" />{selectedFile && <span>{selectedFile.name} · {(selectedFile.size / 1024 / 1024).toFixed(1)}MB</span>}</label></section><div className="journal-actions">{currentJournal && <button className="danger-button" disabled={saving} onClick={() => void deleteJournal()} type="button">일지 삭제</button>}<button className="outline-button" onClick={() => setMode('home')} type="button">나중에 제출하기</button><button className="primary-button" disabled={saving || !selectedFile || !submitterStudentNumber.trim() || !submitterName.trim()} onClick={() => void uploadJournal()} type="button">{saving ? '업로드 중...' : currentJournal ? '새 PDF로 교체 제출' : '오늘 PDF 제출하기'}</button></div></section></main>
 
   return <main className="app-shell"><header className="topbar"><strong>Open Physics</strong><div className="topbar-actions"><button onClick={() => void onRequestPasswordReset()} type="button">비밀번호 변경</button><button onClick={onSignOut} type="button">로그아웃</button></div></header><section className="hero-panel"><p className="eyebrow">WELCOME BACK</p><h1>{profile.display_name} 팀, 오늘도 탐구해 볼까요?</h1><p>기록은 작은 관찰에서 시작됩니다.</p></section>{error && <p className="error">{error}</p>}<section className="dashboard-grid"><button className="card date-card team-card-button" onClick={() => setMode('calendar')} type="button"><p>다음 OP DAY</p><strong>{loading ? '일정을 불러오는 중...' : selectedDay?.title ?? '일정이 아직 없어요'}</strong><span>{selectedDay ? selectedDay.date : '선생님이 일정을 등록하면 표시됩니다.'}</span><small>달력에서 일정과 과제 보기 →</small></button><button className="card attendance-card team-card-button" onClick={() => void startToday()} type="button"><p>오늘의 출석</p><strong>{activeAttendance ? '탐구 진행 중' : '출석 시작'}</strong><span>{activeAttendance ? '진행 중인 출석 기록을 이어서 볼 수 있어요.' : todayDay ? todayDay.title : '자율 탐구로 시작할 수 있어요.'}</span><small>{activeAttendance ? '진행 기록 이어보기 →' : '같은 날에도 종료 후 다시 시작할 수 있어요 →'}</small></button><article className="card wide-card"><div><p>오늘의 실험일지 PDF</p><h2>{todayJournal ? '오늘 제출한 PDF를 확인하거나 교체하세요.' : '오늘의 실험일지 PDF를 제출해 보세요.'}</h2><span>실험일지는 오늘 날짜에 한 개만 제출할 수 있습니다.</span></div><button className="outline-button" onClick={() => openJournal()} type="button">{todayJournal ? 'PDF 열기·교체 →' : '오늘 PDF 제출 →'}</button></article></section><section className="journal-template-downloads"><div><p className="eyebrow">JOURNAL TEMPLATES</p><h2>실험일지 양식 다운로드</h2><p>HWP 또는 Word 양식을 내려받아 작성한 뒤, PDF로 변환하여 제출해 주세요.</p></div><div className="journal-template-links">{JOURNAL_TEMPLATES.map((template) => <article key={template.title}><strong>{template.title}</strong><span>{template.description}</span><div className="journal-template-actions">{template.downloads.map((download) => <a href={download.href} download={download.fileName} key={download.href}>{download.label} ↓</a>)}</div></article>)}</div></section><section className="team-journal-history"><div><p className="eyebrow">SAVED PDF JOURNALS</p><h2>제출한 실험일지</h2></div>{journals.length === 0 ? <p className="muted">아직 제출한 PDF가 없어요.</p> : <div className="history-list">{journals.map((journal) => <button key={journal.id} onClick={() => void openJournalPdf(journal)} type="button"><strong>{displayDate(journal.journal_date)}</strong><span>{journal.file_name ?? '기존 양식 기록'} · PDF 열기</span>{feedbackByJournal[journal.id]?.map((feedback) => <span className="journal-feedback-preview" key={feedback.id}><b>{teacherName(feedback)}</b>{feedback.content}</span>)}</button>)}</div>}</section></main>
 }
