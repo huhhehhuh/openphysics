@@ -1,0 +1,24 @@
+name: Keep Supabase Active
+
+on:
+  schedule:
+    # 매일 12:17 KST (GitHub cron은 UTC 기준)
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the keep-alive RPC
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          curl --fail --silent --show-error \
+            --retry 3 --retry-all-errors --connect-timeout 15 --max-time 30 \
+            --request POST "${SUPABASE_URL}/rest/v1/rpc/keep_alive" \
+            --header "apikey: ${SUPABASE_PUBLISHABLE_KEY}" \
+            --header "Authorization: Bearer ${SUPABASE_PUBLISHABLE_KEY}" \
+            --header "Content-Type: application/json" \
+            --data '{}'
